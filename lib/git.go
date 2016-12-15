@@ -6,7 +6,10 @@ import (
 	"net/http"
 )
 
-const EVENTHEADER = "X-GitHub-Event"
+const (
+	EVENTHEADER     = "X-GitHub-Event"
+	FORWARDEDHEADER = "X-Forwarded-For"
+)
 
 type hookPayload struct {
 	Username, Password string
@@ -22,7 +25,15 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Info("Received request on listener")
-	log.Debug("Request from " + r.UserAgent() + " at " + r.RemoteAddr)
+	// Request might be proxied, so check if there's a X-Forwarded-For header
+	forwardedFor := r.Header.Get(FORWARDEDHEADER)
+	var remoteAddr string
+	if forwardedFor != "" {
+		remoteAddr = forwardedFor
+	} else {
+		remoteAddr = r.RemoteAddr
+	}
+	log.Debug("Request from " + r.UserAgent() + " at " + remoteAddr)
 
 	// Check which event we received and assign the appropriate handler to eventHandler
 	var eventHandler func(hookPayload)
@@ -34,7 +45,8 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		eventHandler = val
 		log.Debug("Found appropriate handler for " + event + "\" event")
 	} else {
-		log.Error("Received \"" + EVENTHEADER + "\", but found no supporting handler, returning")
+		log.Error("Received \"" + EVENTHEADER + "\", but found no supporting handler for \"" +
+			event + "\" event, returning")
 		return
 	}
 
