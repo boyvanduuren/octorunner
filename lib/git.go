@@ -25,7 +25,7 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Info("Received request on listener")
-	// Request might be proxied, so check if there's a X-Forwarded-For header
+	// Request might be proxied, so check if there's an X-Forwarded-For header
 	forwardedFor := r.Header.Get(FORWARDEDHEADER)
 	var remoteAddr string
 	if forwardedFor != "" {

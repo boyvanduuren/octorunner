@@ -22,7 +22,7 @@ const (
 	WEB_PATH_DEFAULT   = "payload"
 )
 
-// Main entry point for our program. Used to read and set the configuration we'll be using.
+// Main entry point for our program. Used to read and set the configuration we'll be using, and setup a webserver.
 func main() {
 	LOGMAP := map[string]log.Level{
 		"debug": log.DebugLevel,
