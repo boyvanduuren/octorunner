@@ -63,7 +63,7 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	eventHandler(payload)
 }
 
-// Handle a push event to a Github repository. We will need to look at the settings for githubrunner
+// Handle a push event to a Github repository. We will need to look at the settings for octorunner
 // in this repository and take action accordingly.
 func handlePush(payload hookPayload) {
 	// do something

@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	ENVPREFIX          = "githubrunner"
+	ENVPREFIX          = "octorunner"
 	CONFIGFILE         = "config"
 	CONFIGPATH         = "."
 	LOGLEVEL           = "loglevel"
@@ -31,16 +31,16 @@ func main() {
 		"info":  log.InfoLevel,
 	}
 
-	log.Info("Starting githubrunner")
+	log.Info("Starting octorunner")
 
 	// Configure viper to read config from the environment
-	// We'll use a EnvKeyReplacer so GITHUBRUNNER_GIT_APIKEY
+	// We'll use a EnvKeyReplacer so OCTORUNNER_GIT_APIKEY
 	// overrides git.apikey defined in a config file
 	viper.SetEnvPrefix(ENVPREFIX)
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
-	// A config file might exist in the same dir as the githubrunner binary, but is not required
+	// A config file might exist in the same dir as the octorunner binary, but is not required
 	viper.SetConfigName(CONFIGFILE)
 	viper.AddConfigPath(CONFIGPATH)
 	viper.ReadInConfig()
