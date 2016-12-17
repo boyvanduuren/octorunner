@@ -3,6 +3,7 @@ package git
 import (
 	"encoding/json"
 	log "github.com/Sirupsen/logrus"
+	//"github.com/google/go-github/github"
 	"net/http"
 )
 
@@ -12,7 +13,20 @@ const (
 )
 
 type hookPayload struct {
-	Username, Password string
+	ref, before, after, compare string
+	created, deleted, forced    bool
+	Repository                  struct {
+		id              int
+		name, full_name string
+		private         bool
+	} `json:"repository"`
+	Pusher struct {
+		name, email string
+	} `json:"pusher"`
+	Sender struct {
+		login string
+		id    int
+	} `json:"sender"`
 }
 
 // HandleWebhook is called when we receive a request on our listener and is responsible
