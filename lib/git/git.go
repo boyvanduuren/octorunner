@@ -1,13 +1,17 @@
 package git
 
 import (
-	"encoding/json"
-	log "github.com/Sirupsen/logrus"
-	//	"github.com/google/go-github/github"
 	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	log "github.com/Sirupsen/logrus"
 	authentication "github.com/boyvanduuren/octorunner/lib/auth"
+	"github.com/google/go-github/github"
+	"golang.org/x/oauth2"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 )
 
 const (
@@ -25,7 +29,10 @@ type hookPayload struct {
 		Id       int
 		Name     string
 		FullName string `json:"full_name"`
-		Private  bool
+		Owner    struct {
+			Name string `json:"name"`
+		} `json:"owner"`
+		Private bool
 	} `json:"repository"`
 	Pusher struct {
 		Name, Email string
@@ -90,6 +97,7 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Debug("Decoded payload to ", payload)
 
+	// TODO: other way around, if we have secret, payload needs signature
 	// The payload might have an X-Hub-Signature header, which means the webhook has a secret, so we have to
 	// validate the signature contained in the header
 	signature := r.Header.Get(SIGNATUREHEADER)
@@ -114,6 +122,8 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 			log.Error("Signatures didn't match")
 			return
 		}
+	} else {
+		eventHandler(payload)
 	}
 }
 
@@ -124,7 +134,7 @@ func handlePush(payload hookPayload) {
 
 	repoPrivate := payload.Repository.Private
 	repoFullName := payload.Repository.FullName
-	var repoToken string
+	repoToken := Auth.RequestToken(repoFullName)
 
 	log.Info("Repository \"" + repoFullName + "\" was pushed to")
 
@@ -132,10 +142,44 @@ func handlePush(payload hookPayload) {
 	// we cannot download the repository from github
 	if repoPrivate {
 		log.Debug("Repository is private, looking up credentials")
-		repoToken = Auth.RequestToken(repoFullName)
-		if repoToken == "" {
+		if repoToken == nil {
 			log.Error("No token found for repository \"" + repoFullName + "\", returning")
 			return
 		}
 	}
+
+	repoName := payload.Repository.Name
+	repoOwner := payload.Repository.Owner.Name
+	commitId := payload.After
+	getArchive(repoName, repoOwner, commitId, repoToken)
+}
+
+func getArchive(repoName string, repoOwner string, commitId string, repoToken *oauth2.Token) string {
+	const GITHUB_ARCHIVE_URL = "https://github.com/%s/%s/archive/%s.zip"
+	const GITHUB_ARCHIVE_FORMAT = "zipball"
+	var archiveUrl *url.URL
+	var err error
+
+	log.Info("Downloading archive of latest commit in push")
+	if repoToken == nil {
+		// no repoToken, so this is a public repository
+		archiveUrl, err = url.Parse(fmt.Sprintf(GITHUB_ARCHIVE_URL, repoOwner, repoName, commitId))
+		if err != nil {
+			log.Error("Error while constructing archive URL: ", err)
+			return ""
+		}
+	} else {
+		gitClient := github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(repoToken)))
+		log.Debug("Getting archive URL for \"" + repoOwner + "/" + repoName + "\", ref \"" + commitId + "\"")
+		archiveUrl, _, err = gitClient.Repositories.GetArchiveLink(repoOwner, repoName, GITHUB_ARCHIVE_FORMAT,
+			&github.RepositoryContentGetOptions{Ref: commitId})
+		if err != nil {
+			log.Error("Error while getting archive URL: ", err)
+			return ""
+		}
+	}
+
+	log.Debug("Found archive URL ", archiveUrl)
+
+	return "stub"
 }

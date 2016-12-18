@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"crypto/subtle"
 	"fmt"
+	"golang.org/x/oauth2"
 )
 
 type Repository struct {
@@ -12,7 +13,7 @@ type Repository struct {
 }
 
 type AuthMethod interface {
-	RequestToken(repoFullName string) string
+	RequestToken(repoFullName string) *oauth2.Token
 	RequestSecret(repoFullName string) []byte
 }
 

@@ -1,13 +1,17 @@
 package auth
 
+import (
+	"golang.org/x/oauth2"
+)
+
 type SimpleAuth struct {
 	Store map[string]Repository
 }
 
-func (auth SimpleAuth) RequestToken(repoFullName string) string {
-	var token string
+func (auth SimpleAuth) RequestToken(repoFullName string) *oauth2.Token {
+	var token *oauth2.Token
 	if val, exists := auth.Store[repoFullName]; exists {
-		token = val.Token
+		token = &oauth2.Token{AccessToken: val.Token}
 	}
 	return token
 }
