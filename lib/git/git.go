@@ -97,34 +97,27 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Debug("Decoded payload to ", payload)
 
-	// TODO: other way around, if we have secret, payload needs signature
-	// The payload might have an X-Hub-Signature header, which means the webhook has a secret, so we have to
-	// validate the signature contained in the header
-	signature := r.Header.Get(SIGNATUREHEADER)
-	if signature != "" {
-		log.Debug("Received signature \"" + signature + "\" for payload")
-	}
-
-	// If we actually received a signature, calculate our own and validate
-	// On succesful validation call our handler, else return with an error log message
-	if signature != "" {
-		log.Debug("Received signature " + signature)
-		repoSecret := Auth.RequestSecret(payload.Repository.FullName)
-		if len(repoSecret) == 0 {
-			log.Error("No secret was configured, cannot verify their signature")
+	// The repository that this payload is for might have a secret configured, in which case we expect
+	// a signature with the payload. The given signature then needs to match a signature we calculate ourselves.
+	// Only then will we call our handler, else we'll log an error and return
+	repoSecret := Auth.RequestSecret(payload.Repository.FullName)
+	if len(repoSecret) == 0 {
+		log.Error("No secret was configured, cannot verify their signature")
+	} else {
+		signature := r.Header.Get(SIGNATUREHEADER)
+		if signature == "" {
+			log.Error("Expected signature for payload, but none given")
 			return
 		}
-		calculatedSignature := authentication.CalculateSignature(repoSecret, payloadBody)
+		log.Debug("Received signature " + signature)
+		calculatedSignature := "sha1=" + authentication.CalculateSignature(repoSecret, payloadBody)
 		log.Debug("Calculated signature ", calculatedSignature)
-		if authentication.CompareSignatures([]byte(signature), []byte("sha1="+calculatedSignature)) {
-			eventHandler(payload)
-		} else {
+		if !authentication.CompareSignatures([]byte(signature), []byte(calculatedSignature)) {
 			log.Error("Signatures didn't match")
 			return
 		}
-	} else {
-		eventHandler(payload)
 	}
+	eventHandler(payload)
 }
 
 // Handle a push event to a Github repository. We will need to look at the settings for octorunner
