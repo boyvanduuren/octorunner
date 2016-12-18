@@ -71,7 +71,7 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if val, exists := supportedEvents[event]; exists {
 		eventHandler = val
-		log.Debug("Found appropriate handler for " + event + "\" event")
+		log.Debug("Found appropriate handler for \"" + event + "\" event")
 	} else {
 		log.Error("Received \"" + EVENTHEADER + "\", but found no supporting handler for \"" +
 			event + "\" event, returning")
