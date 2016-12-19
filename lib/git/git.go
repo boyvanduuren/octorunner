@@ -12,12 +12,16 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"io"
+	"os"
 )
 
 const (
 	EVENTHEADER     = "X-GitHub-Event"
 	FORWARDEDHEADER = "X-Forwarded-For"
 	SIGNATUREHEADER = "X-Hub-Signature"
+	TMPDIR_PREFIX = "octorunner-"
+	TMPFILE_PREFIX = "archive-"
 )
 
 var Auth authentication.AuthMethod
@@ -152,6 +156,7 @@ func getArchive(repoName string, repoOwner string, commitId string, repoToken *o
 	const GITHUB_ARCHIVE_FORMAT = "zipball"
 	var archiveUrl *url.URL
 	var err error
+	var httpClient *http.Client
 
 	log.Info("Downloading archive of latest commit in push")
 	if repoToken == nil {
@@ -161,8 +166,10 @@ func getArchive(repoName string, repoOwner string, commitId string, repoToken *o
 			log.Error("Error while constructing archive URL: ", err)
 			return ""
 		}
+		httpClient = &http.Client{}
 	} else {
-		gitClient := github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(repoToken)))
+		httpClient = oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(repoToken))
+		gitClient := github.NewClient(httpClient)
 		log.Debug("Getting archive URL for \"" + repoOwner + "/" + repoName + "\", ref \"" + commitId + "\"")
 		archiveUrl, _, err = gitClient.Repositories.GetArchiveLink(repoOwner, repoName, GITHUB_ARCHIVE_FORMAT,
 			&github.RepositoryContentGetOptions{Ref: commitId})
@@ -171,8 +178,38 @@ func getArchive(repoName string, repoOwner string, commitId string, repoToken *o
 			return ""
 		}
 	}
-
 	log.Debug("Found archive URL ", archiveUrl)
 
+	tmpDir, err := ioutil.TempDir("", TMPDIR_PREFIX)
+	if err != nil {
+		log.Error("Error while creating temporary directory: ", err)
+	}
+
+	log.Debug("Created temporary directory " + tmpDir)
+	archivePath, err := downloadFile(httpClient, archiveUrl, tmpDir)
+	if err != nil {
+		log.Error("Error while downloading archive: ", err)
+	}
+	defer archivePath.Close()
+	log.Debug("Archive downloaded to ", archivePath.Name())
+
 	return "stub"
+}
+
+func downloadFile(httpClient *http.Client, url *url.URL, downloadDirectory string) (*os.File, error) {
+	log.Debug("Downloading \"" + url.String() + "\"")
+	filePath, err := ioutil.TempFile(downloadDirectory, TMPFILE_PREFIX)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := httpClient.Get(url.String())
+	defer resp.Body.Close()
+	n, err := io.Copy(filePath, resp.Body)
+	if err != nil {
+		return nil, err
+	} else {
+		log.Debugf("Downloaded %d bytes", n)
+		return filePath, nil
+	}
 }
