@@ -7,6 +7,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	authentication "github.com/boyvanduuren/octorunner/lib/auth"
+	zip "github.com/boyvanduuren/octorunner/lib/zip"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 	"io/ioutil"
@@ -14,6 +15,7 @@ import (
 	"net/url"
 	"io"
 	"os"
+	"path"
 )
 
 const (
@@ -148,11 +150,12 @@ func handlePush(payload hookPayload) {
 	repoName := payload.Repository.Name
 	repoOwner := payload.Repository.Owner.Name
 	commitId := payload.After
-	getArchive(repoName, repoOwner, commitId, repoToken)
+	getRepository(repoName, repoOwner, commitId, repoToken)
 }
 
-func getArchive(repoName string, repoOwner string, commitId string, repoToken *oauth2.Token) string {
+func getRepository(repoName string, repoOwner string, commitId string, repoToken *oauth2.Token) string {
 	const GITHUB_ARCHIVE_URL = "https://github.com/%s/%s/archive/%s.zip"
+	const GITHUB_ARCHIVE_ROOTDIR = "%s-%s-%s"
 	const GITHUB_ARCHIVE_FORMAT = "zipball"
 	var archiveUrl *url.URL
 	var err error
@@ -183,17 +186,37 @@ func getArchive(repoName string, repoOwner string, commitId string, repoToken *o
 	tmpDir, err := ioutil.TempDir("", TMPDIR_PREFIX)
 	if err != nil {
 		log.Error("Error while creating temporary directory: ", err)
+		return ""
 	}
 
 	log.Debug("Created temporary directory " + tmpDir)
 	archivePath, err := downloadFile(httpClient, archiveUrl, tmpDir)
 	if err != nil {
 		log.Error("Error while downloading archive: ", err)
+		return ""
 	}
-	defer archivePath.Close()
 	log.Debug("Archive downloaded to ", archivePath.Name())
 
-	return "stub"
+	err = zip.Unzip(archivePath.Name(), tmpDir)
+	if err != nil {
+		log.Error("Error while unpacking archive: ", err)
+		return ""
+	}
+
+	// cleanup the archive
+	archivePath.Close()
+	os.Remove(archivePath.Name())
+
+	// we should now have a copy of the repository at the latest commit
+	repoDir := path.Join(tmpDir, fmt.Sprintf(GITHUB_ARCHIVE_ROOTDIR, repoOwner, repoName, commitId))
+	if s, err := os.Stat(repoDir); os.IsNotExist(err) == true || !s.IsDir() {
+		log.Error("Repository not found at expected directory ", repoDir, " after unpacking")
+		return ""
+	}
+
+	log.Debug("Repository unpacked to ", repoDir)
+
+	return repoDir
 }
 
 func downloadFile(httpClient *http.Client, url *url.URL, downloadDirectory string) (*os.File, error) {
@@ -213,3 +236,4 @@ func downloadFile(httpClient *http.Client, url *url.URL, downloadDirectory strin
 		return filePath, nil
 	}
 }
+
