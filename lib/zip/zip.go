@@ -2,11 +2,11 @@ package zip
 
 import (
 	"archive/zip"
-	"path/filepath"
-	"os"
-	"strings"
 	log "github.com/Sirupsen/logrus"
 	"io"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 // Extract a zip file to a destination.
@@ -30,7 +30,7 @@ func Unzip(src, dest string) error {
 			os.MkdirAll(fpath, f.Mode())
 		} else {
 			var fdir string
-			if lastIndex := strings.LastIndex(fpath,string(os.PathSeparator)); lastIndex > -1 {
+			if lastIndex := strings.LastIndex(fpath, string(os.PathSeparator)); lastIndex > -1 {
 				fdir = fpath[:lastIndex]
 			}
 

@@ -10,10 +10,10 @@ import (
 	zip "github.com/boyvanduuren/octorunner/lib/zip"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"io"
 	"os"
 	"path"
 )
@@ -22,8 +22,8 @@ const (
 	EVENTHEADER     = "X-GitHub-Event"
 	FORWARDEDHEADER = "X-Forwarded-For"
 	SIGNATUREHEADER = "X-Hub-Signature"
-	TMPDIR_PREFIX = "octorunner-"
-	TMPFILE_PREFIX = "archive-"
+	TMPDIR_PREFIX   = "octorunner-"
+	TMPFILE_PREFIX  = "archive-"
 )
 
 var Auth authentication.AuthMethod
@@ -236,4 +236,3 @@ func downloadFile(httpClient *http.Client, url *url.URL, downloadDirectory strin
 		return filePath, nil
 	}
 }
-
