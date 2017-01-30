@@ -20,8 +20,7 @@ const (
 */
 type Job struct {
 	Script       []string `yaml:"script"`
-	Image        string   `yaml:"image"`
-	Stage        string   `yaml:"stage"`
+	Image        string   `yaml:"image,omitempty"`
 	AllowFailure bool     `yaml:"allow_failure"`
 }
 
