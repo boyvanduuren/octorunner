@@ -171,7 +171,11 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(repoToken))
 	gitClient := github.NewClient(httpClient)
 
-	repoDir := getRepository(httpClient, gitClient, repoName, repoOwner, commitId, repoToken)
+	repoDir, err := getRepository(httpClient, gitClient, repoName, repoOwner, commitId, repoToken)
+	if err != nil {
+		log.Errorf("Error while downloading copy of repository: %v", err)
+		return
+	}
 
 	ctx = context.WithValue(ctx, "repoData", map[string]string{
 		"fullName":   repoFullName,
@@ -182,6 +186,7 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	pipeline, err := readPipelineConfig(repoDir)
 	if err != nil {
 		log.Errorf("Error while reading pipeline configuration: %v", err)
+		return
 	}
 
 	// set state of commit to pending
@@ -191,7 +196,9 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	if err != nil {
 		log.Errorf("Error while executing pipeline: %v", err)
 		gitSetState(gitClient, "error", repoOwner, repoName, commitId)
+		return
 	}
+
 	log.Debugf("Pipeline returned %d, setting state accordingly", exitcode)
 	if exitcode == 0 {
 		gitSetState(gitClient, "success", repoOwner, repoName, commitId)
@@ -200,7 +207,8 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	}
 }
 
-func getRepository(httpClient *http.Client, gitClient *github.Client, repoName string, repoOwner string, commitId string, repoToken *oauth2.Token) string {
+func getRepository(httpClient *http.Client, gitClient *github.Client, repoName string, repoOwner string,
+	commitId string, repoToken *oauth2.Token) (string, error) {
 	const GITHUB_ARCHIVE_URL = "https://github.com/%s/%s/archive/%s.zip"
 	const GITHUB_ARCHIVE_ROOTDIR = "%s-%s-%s"
 	const GITHUB_ARCHIVE_FORMAT = "zipball"
@@ -212,38 +220,34 @@ func getRepository(httpClient *http.Client, gitClient *github.Client, repoName s
 		// no repoToken, so this is a public repository
 		archiveUrl, err = url.Parse(fmt.Sprintf(GITHUB_ARCHIVE_URL, repoOwner, repoName, commitId))
 		if err != nil {
-			log.Error("Error while constructing archive URL: ", err)
-			return ""
+			return "", errors.New(fmt.Sprintf("Error while constructing archive URL: %v", err))
 		}
 	} else {
 		log.Debug("Getting archive URL for \"" + repoOwner + "/" + repoName + "\", ref \"" + commitId + "\"")
 		archiveUrl, _, err = gitClient.Repositories.GetArchiveLink(repoOwner, repoName, GITHUB_ARCHIVE_FORMAT,
 			&github.RepositoryContentGetOptions{Ref: commitId})
 		if err != nil {
-			log.Error("Error while getting archive URL: ", err)
-			return ""
+			return "", errors.New(fmt.Sprintf("Error while getting archive URL: %v", err))
 		}
 	}
 	log.Debug("Found archive URL ", archiveUrl)
 
 	tmpDir, err := ioutil.TempDir("", TMPDIR_PREFIX)
 	if err != nil {
-		log.Error("Error while creating temporary directory: ", err)
-		return ""
+		log.Error()
+		return "", errors.New(fmt.Sprintf("Error while creating temporary directory: %v", err))
 	}
 
 	log.Debug("Created temporary directory " + tmpDir)
 	archivePath, err := downloadFile(httpClient, archiveUrl, tmpDir)
 	if err != nil {
-		log.Error("Error while downloading archive: ", err)
-		return ""
+		return "", errors.New(fmt.Sprintf("Error while downloading archive: %v", err))
 	}
 	log.Debug("Archive downloaded to ", archivePath.Name())
 
 	err = zip.Unzip(archivePath.Name(), tmpDir)
 	if err != nil {
-		log.Error("Error while unpacking archive: ", err)
-		return ""
+		return "", errors.New(fmt.Sprintf("Error while unpacking archive: %v", err))
 	}
 
 	// cleanup the archive
@@ -255,13 +259,13 @@ func getRepository(httpClient *http.Client, gitClient *github.Client, repoName s
 	if checkDirNotExists(repoDir) {
 		repoDir = path.Join(tmpDir, fmt.Sprintf(GITHUB_ARCHIVE_ROOTDIR, repoOwner, repoName, commitId[0:7]))
 		if checkDirNotExists(repoDir) {
-			log.Error("Repository not found at expected directory ", repoDir, " after unpacking")
-			return ""
+			log.Error()
+			return "", errors.New(fmt.Sprintf("Repository not found at expected directory \"%s\" after unpacking", repoDir))
 		}
 	}
 	log.Debug("Repository unpacked to ", repoDir)
 
-	return repoDir
+	return repoDir, nil
 }
 
 func downloadFile(httpClient *http.Client, url *url.URL, downloadDirectory string) (*os.File, error) {
