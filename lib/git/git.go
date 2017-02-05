@@ -7,7 +7,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	authentication "github.com/boyvanduuren/octorunner/lib/auth"
-	zip "github.com/boyvanduuren/octorunner/lib/zip"
+	"github.com/boyvanduuren/octorunner/lib/zip"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 	"io"
@@ -58,9 +58,13 @@ type hookPayload struct {
 // If the received event is not supported we log an error and return without doing anything.
 func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Map Github webhook events to functions that handle them
-	supportedEvents := map[string]func(hookPayload){
+	supportedEvents := map[string]func(context.Context, hookPayload){
 		"push": handlePush,
 	}
+
+	// Create a context for this request
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	log.Info("Received request on listener")
 	// Request might be proxied, so check if there's an X-Forwarded-For header
@@ -74,7 +78,7 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	log.Debug("Request from " + r.UserAgent() + " at " + remoteAddr)
 
 	// Check which event we received and assign the appropriate handler to eventHandler
-	var eventHandler func(hookPayload)
+	var eventHandler func(context.Context, hookPayload)
 	event := r.Header.Get(EVENTHEADER)
 	if event == "" {
 		log.Error("Header \"" + EVENTHEADER + "\" not set, returning")
@@ -127,12 +131,12 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	eventHandler(payload)
+	eventHandler(ctx, payload)
 }
 
 // Handle a push event to a Github repository. We will need to look at the settings for octorunner
 // in this repository and take action accordingly.
-func handlePush(payload hookPayload) {
+func handlePush(ctx context.Context, payload hookPayload) {
 	log.Info("Handling received push event")
 
 	repoPrivate := payload.Repository.Private
@@ -155,14 +159,19 @@ func handlePush(payload hookPayload) {
 	repoOwner := payload.Repository.Owner.Name
 	commitId := payload.After
 
-	pipeline, err := readPipelineConfig(getRepository(repoName, repoOwner, commitId, repoToken))
+	ctx = context.WithValue(ctx, "repoData", map[string]string{
+		"fullName": repoFullName,
+		"commitId": commitId,
+	})
+
+	pipeline, err := readPipelineConfig(getRepository(ctx, repoName, repoOwner, commitId, repoToken))
 	if err != nil {
 		log.Errorf("Error while reading pipeline configuration: %v", err)
 	}
-	pipeline.Execute()
+	pipeline.Execute(ctx)
 }
 
-func getRepository(repoName string, repoOwner string, commitId string, repoToken *oauth2.Token) string {
+func getRepository(ctx context.Context, repoName string, repoOwner string, commitId string, repoToken *oauth2.Token) string {
 	const GITHUB_ARCHIVE_URL = "https://github.com/%s/%s/archive/%s.zip"
 	const GITHUB_ARCHIVE_ROOTDIR = "%s-%s-%s"
 	const GITHUB_ARCHIVE_FORMAT = "zipball"
@@ -180,7 +189,7 @@ func getRepository(repoName string, repoOwner string, commitId string, repoToken
 		}
 		httpClient = &http.Client{}
 	} else {
-		httpClient = oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(repoToken))
+		httpClient = oauth2.NewClient(ctx, oauth2.StaticTokenSource(repoToken))
 		gitClient := github.NewClient(httpClient)
 		log.Debug("Getting archive URL for \"" + repoOwner + "/" + repoName + "\", ref \"" + commitId + "\"")
 		archiveUrl, _, err = gitClient.Repositories.GetArchiveLink(repoOwner, repoName, GITHUB_ARCHIVE_FORMAT,
