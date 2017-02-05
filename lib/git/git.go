@@ -163,7 +163,7 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	 When a commit is merged from a branch to another branch, the "after" ID is set to
 	 "0000000000000000000000000000000000000000", and the "previous" ID is the ID of the commit being merged.
 	 That commit will probably already have a state assigned, so we can just return
-	  */
+	*/
 	if commitId == "0000000000000000000000000000000000000000" {
 		return
 	}
@@ -301,7 +301,7 @@ func readPipelineConfig(directory string) (pipeline.Pipeline, error) {
 }
 
 func checkDirNotExists(dir string) bool {
-	s, err := os.Stat(dir);
+	s, err := os.Stat(dir)
 	return os.IsNotExist(err) == true || !s.IsDir()
 }
 
