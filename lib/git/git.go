@@ -159,7 +159,10 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	repoOwner := payload.Repository.Owner.Name
 	commitId := payload.After
 
-	repoDir := getRepository(ctx, repoName, repoOwner, commitId, repoToken)
+	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(repoToken))
+	gitClient := github.NewClient(httpClient)
+
+	repoDir := getRepository(httpClient, gitClient, repoName, repoOwner, commitId, repoToken)
 
 	ctx = context.WithValue(ctx, "repoData", map[string]string{
 		"fullName":   repoFullName,
@@ -176,16 +179,17 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	if err != nil {
 		log.Errorf("Error while executing pipeline: %v", err)
 	}
+	state := "success"
+	gitClient.Repositories.CreateStatus(repoOwner, repoName, commitId, &github.RepoStatus{State:&state})
 	log.Infof("Pipeline returned %d", exitcode)
 }
 
-func getRepository(ctx context.Context, repoName string, repoOwner string, commitId string, repoToken *oauth2.Token) string {
+func getRepository(httpClient *http.Client, gitClient *github.Client, repoName string, repoOwner string, commitId string, repoToken *oauth2.Token) string {
 	const GITHUB_ARCHIVE_URL = "https://github.com/%s/%s/archive/%s.zip"
 	const GITHUB_ARCHIVE_ROOTDIR = "%s-%s-%s"
 	const GITHUB_ARCHIVE_FORMAT = "zipball"
 	var archiveUrl *url.URL
 	var err error
-	var httpClient *http.Client
 
 	log.Info("Downloading archive of latest commit in push")
 	if repoToken == nil {
@@ -195,10 +199,7 @@ func getRepository(ctx context.Context, repoName string, repoOwner string, commi
 			log.Error("Error while constructing archive URL: ", err)
 			return ""
 		}
-		httpClient = &http.Client{}
 	} else {
-		httpClient = oauth2.NewClient(ctx, oauth2.StaticTokenSource(repoToken))
-		gitClient := github.NewClient(httpClient)
 		log.Debug("Getting archive URL for \"" + repoOwner + "/" + repoName + "\", ref \"" + commitId + "\"")
 		archiveUrl, _, err = gitClient.Repositories.GetArchiveLink(repoOwner, repoName, GITHUB_ARCHIVE_FORMAT,
 			&github.RepositoryContentGetOptions{Ref: commitId})
