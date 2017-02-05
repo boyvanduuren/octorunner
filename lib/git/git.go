@@ -159,6 +159,15 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	repoOwner := payload.Repository.Owner.Name
 	commitId := payload.After
 
+	/*
+	 When a commit is merged from a branch to another branch, the "after" ID is set to
+	 "0000000000000000000000000000000000000000", and the "previous" ID is the ID of the commit being merged.
+	 That commit will probably already have a state assigned, so we can just return
+	  */
+	if commitId == "0000000000000000000000000000000000000000" {
+		return
+	}
+
 	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(repoToken))
 	gitClient := github.NewClient(httpClient)
 
