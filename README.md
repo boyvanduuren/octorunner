@@ -1,8 +1,7 @@
 # octorunner
 
-Octorunner is a tool that serves as the endpoint for Github webhooks.
-Right now it supports handling of the `push` event, and triggers the running of a simple script in a Docker container, which can be
-used for running tests. The status of the commit that was pushed is set according to the exit code of that test.
+Octorunner is a tool that serves as the endpoint for Github webhooks. It was inspired by [Gitlab's gitlab-runner](https://docs.gitlab.com/runner/).
+Right now it can spin up a docker container using a user specified docker image, run some user specified test commands, and set a commit's status. This is all triggered by push events. It works for both public and private repositories.
 
 ## Configuration
 
@@ -22,6 +21,11 @@ The following configuration settings can be set.
 In case you'd like to configure `octorunner` using environment variables, you should capitalize the configuration key, prefix it with `OCTORUNNER_`
 and replace `.` with `_` (e.g. `WEB_PORT=8000`)
 
+### Docker configuration
+
+The official docker client API is used, so configuration is done as described on [their documentation](https://godoc.org/github.com/docker/docker/client#NewEnvClient).
+TLDR: `DOCKER_HOST=http://<ip>:<port>`, `DOCKER_API_VERSION=<version>`, `DOCKER_CERT_PATH=<path>`, `DOCKER_TLS_VERIFY=1`.
+
 ### Repository configuration
 
 You'll want to configure access tokens and secrets for the repositories that'll use `octorunner` as webhook endpoint. The access tokens
@@ -37,6 +41,12 @@ repositories:
     token: YOUR_ACCESS_TOKEN
     secret: YOUR_SECRET
 ```
+
+### Github configuration
+
+When octorunner has been configured and is running, you'll want to set the configured URL as a webhook endpoint on your github repository. This can be done on `https://github.com/<username>/<project>/settings/hooks`.
+[Github recommends ngrok](https://developer.github.com/webhooks/configuring/) to expose your endpoint on the internet, and I found
+it works easy enough.
 
 ## Adding a test to your repository
 
@@ -60,3 +70,4 @@ they should all return 0 in order for the test to succeed.
 * Handle pull request events
 * Store test output
 * Write more and proper tests
+* Add an option to setup webhooks automatically
