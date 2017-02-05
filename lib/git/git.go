@@ -243,11 +243,13 @@ func getRepository(httpClient *http.Client, gitClient *github.Client, repoName s
 
 	// we should now have a copy of the repository at the latest commit
 	repoDir := path.Join(tmpDir, fmt.Sprintf(GITHUB_ARCHIVE_ROOTDIR, repoOwner, repoName, commitId))
-	if s, err := os.Stat(repoDir); os.IsNotExist(err) == true || !s.IsDir() {
-		log.Error("Repository not found at expected directory ", repoDir, " after unpacking")
-		return ""
+	if checkDirNotExists(repoDir) {
+		repoDir = path.Join(tmpDir, fmt.Sprintf(GITHUB_ARCHIVE_ROOTDIR, repoOwner, repoName, commitId[0:7]))
+		if checkDirNotExists(repoDir) {
+			log.Error("Repository not found at expected directory ", repoDir, " after unpacking")
+			return ""
+		}
 	}
-
 	log.Debug("Repository unpacked to ", repoDir)
 
 	return repoDir
@@ -287,6 +289,11 @@ func readPipelineConfig(directory string) (pipeline.Pipeline, error) {
 
 	pipelineConfig, err = pipeline.ParseConfig(pipelineConfigBuf)
 	return pipelineConfig, err
+}
+
+func checkDirNotExists(dir string) bool {
+	s, err := os.Stat(dir);
+	return os.IsNotExist(err) == true || !s.IsDir()
 }
 
 func gitSetState(git *github.Client, state string, owner string, repo string, commit string) {
