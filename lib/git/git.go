@@ -171,7 +171,12 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	if err != nil {
 		log.Errorf("Error while reading pipeline configuration: %v", err)
 	}
-	pipeline.Execute(ctx)
+
+	exitcode, err := pipeline.Execute(ctx)
+	if err != nil {
+		log.Errorf("Error while executing pipeline: %v", err)
+	}
+	log.Infof("Pipeline returned %d", exitcode)
 }
 
 func getRepository(ctx context.Context, repoName string, repoOwner string, commitId string, repoToken *oauth2.Token) string {
