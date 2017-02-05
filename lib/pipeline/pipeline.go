@@ -4,10 +4,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const (
-	PIPELINEFILE = ".octorunner"
-)
-
 /*
  A job is one of the core structs in a pipeline configuration, it defines
  a unit of work. Every job belongs to a stage, and all jobs of a stage are run in parallel.
