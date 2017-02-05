@@ -52,3 +52,8 @@ func TestConfigParsing(t *testing.T) {
 	// image should be "test/image:latest"
 	assert.Equal(t, job2.Image, "test/image:latest")
 }
+
+func TestPipelineExecute(t *testing.T) {
+	config, _ := pipeline.ParseConfig([]byte(foo))
+	assert.Equal(t, config.Execute(), 0)
+}

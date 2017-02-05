@@ -16,6 +16,9 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
+	"github.com/boyvanduuren/octorunner/lib/pipeline"
+	"errors"
 )
 
 const (
@@ -24,6 +27,7 @@ const (
 	SIGNATUREHEADER = "X-Hub-Signature"
 	TMPDIR_PREFIX   = "octorunner-"
 	TMPFILE_PREFIX  = "archive-"
+	PIPELINEFILE = ".octorunner"
 )
 
 var Auth authentication.AuthMethod
@@ -150,7 +154,12 @@ func handlePush(payload hookPayload) {
 	repoName := payload.Repository.Name
 	repoOwner := payload.Repository.Owner.Name
 	commitId := payload.After
-	getRepository(repoName, repoOwner, commitId, repoToken)
+
+	pipeline, err := readPipelineConfig(getRepository(repoName, repoOwner, commitId, repoToken))
+	if err != nil {
+		log.Errorf("Error while reading pipeline configuration: %v", err)
+	}
+	pipeline.Execute()
 }
 
 func getRepository(repoName string, repoOwner string, commitId string, repoToken *oauth2.Token) string {
@@ -235,4 +244,22 @@ func downloadFile(httpClient *http.Client, url *url.URL, downloadDirectory strin
 		log.Debugf("Downloaded %d bytes", n)
 		return filePath, nil
 	}
+}
+
+func readPipelineConfig(directory string) (pipeline.Pipeline, error) {
+	var pipelineConfig pipeline.Pipeline
+	pipelineConfigPath := path.Join(directory, strings.Join([]string{PIPELINEFILE, ".yaml"}, ""))
+	if _, err := os.Stat(pipelineConfigPath); os.IsNotExist(err) == true {
+		pipelineConfigPath = path.Join(directory, strings.Join([]string{PIPELINEFILE, ".yml"}, ""))
+		if _, err := os.Stat(pipelineConfigPath); os.IsNotExist(err) == true {
+			return pipelineConfig, errors.New("Couldn't find .octorunner.yaml or .octorunner.yml in repository")
+		}
+	}
+	pipelineConfigBuf, err := ioutil.ReadFile(pipelineConfigPath)
+	if err != nil {
+		return pipelineConfig, errors.New(fmt.Sprintf("Error while reading from %s: %v", pipelineConfigPath, err))
+	}
+
+	pipelineConfig, err = pipeline.ParseConfig(pipelineConfigBuf)
+	return pipelineConfig, err
 }

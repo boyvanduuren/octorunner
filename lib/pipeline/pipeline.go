@@ -1,13 +1,7 @@
 package pipeline
 
 import (
-	"errors"
-	"fmt"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"os"
-	"path"
-	"strings"
 )
 
 const (
@@ -24,14 +18,13 @@ type Job struct {
 	AllowFailure bool     `yaml:"allow_failure"`
 }
 
-type PipelineConfig struct {
+type Pipeline struct {
 	Jobs   []Job    `yaml:"jobs"`
 	Image  string   `yaml:"image"`
-	Stages []string `yaml:"stages"`
 }
 
-func ParseConfig(file []byte) (PipelineConfig, error) {
-	var pipelineConfig PipelineConfig
+func ParseConfig(file []byte) (Pipeline, error) {
+	var pipelineConfig Pipeline
 	err := yaml.Unmarshal(file, &pipelineConfig)
 	if err != nil {
 		return pipelineConfig, err
@@ -40,20 +33,8 @@ func ParseConfig(file []byte) (PipelineConfig, error) {
 	return pipelineConfig, nil
 }
 
-func ReadPipelineConfig(directory string) (PipelineConfig, error) {
-	var pipelineConfig PipelineConfig
-	pipelineConfigPath := path.Join(directory, strings.Join([]string{PIPELINEFILE, ".yaml"}, ""))
-	if _, err := os.Stat(pipelineConfigPath); os.IsNotExist(err) == true {
-		pipelineConfigPath = path.Join(directory, strings.Join([]string{PIPELINEFILE, ".yml"}, ""))
-		if _, err := os.Stat(pipelineConfigPath); os.IsNotExist(err) == true {
-			return pipelineConfig, errors.New("Couldn't find .octorunner.yaml or .octorunner.yml in repository")
-		}
-	}
-	pipelineConfigBuf, err := ioutil.ReadFile(pipelineConfigPath)
-	if err != nil {
-		return pipelineConfig, errors.New(fmt.Sprintf("Error while reading from %s: %v", pipelineConfigPath, err))
-	}
+func (c Pipeline) Execute() (int) {
+	// start image in described in job, execute script
 
-	pipelineConfig, err = ParseConfig(pipelineConfigBuf)
-	return pipelineConfig, err
+	return 0
 }
