@@ -175,13 +175,20 @@ func handlePush(ctx context.Context, payload hookPayload) {
 		log.Errorf("Error while reading pipeline configuration: %v", err)
 	}
 
+	// set state of commit to pending
+	log.Debug("Setting state to pending")
+	gitSetState(gitClient, "pending", repoOwner, repoName, commitId)
 	exitcode, err := pipeline.Execute(ctx)
 	if err != nil {
 		log.Errorf("Error while executing pipeline: %v", err)
+		gitSetState(gitClient, "error", repoOwner, repoName, commitId)
 	}
-	state := "success"
-	gitClient.Repositories.CreateStatus(repoOwner, repoName, commitId, &github.RepoStatus{State:&state})
-	log.Infof("Pipeline returned %d", exitcode)
+	log.Debugf("Pipeline returned %d, setting state accordingly", exitcode)
+	if exitcode == 0 {
+		gitSetState(gitClient, "success", repoOwner, repoName, commitId)
+	} else {
+		gitSetState(gitClient, "failure", repoOwner, repoName, commitId)
+	}
 }
 
 func getRepository(httpClient *http.Client, gitClient *github.Client, repoName string, repoOwner string, commitId string, repoToken *oauth2.Token) string {
@@ -280,4 +287,8 @@ func readPipelineConfig(directory string) (pipeline.Pipeline, error) {
 
 	pipelineConfig, err = pipeline.ParseConfig(pipelineConfigBuf)
 	return pipelineConfig, err
+}
+
+func gitSetState(git *github.Client, state string, owner string, repo string, commit string) {
+	git.Repositories.CreateStatus(owner, repo, commit, &github.RepoStatus{State: &state})
 }
