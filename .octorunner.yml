@@ -1,5 +1,5 @@
-image: alpine
+image: alpine:latest
 jobs:
   -
     script:
-      - true
+      - test -f octorunner.go
