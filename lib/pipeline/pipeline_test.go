@@ -10,19 +10,10 @@ import (
 )
 
 const foo = `
-image: debian:latest
-
-jobs:
-  -
-    script:
-      - true
-      - true
-    allow_failure: true
-  -
-    script:
-      - do_test
-    image: test/image:latest
-    allow_failure: false
+image: alpine:latest
+script:
+  - true
+  - true
 `
 
 func TestConfigParsing(t *testing.T) {
@@ -33,27 +24,13 @@ func TestConfigParsing(t *testing.T) {
 		t.Fail()
 	}
 
-	// we should have two jobs
-	assert.Equal(t, len(config.Jobs), 2)
-
-	job1 := config.Jobs[0]
-	// the first job should have two commands in the script
-	assert.Equal(t, len(job1.Script), 2)
-	// and they should be "foo" and "bar"
-	assert.Equal(t, job1.Script[0], "foo")
-	assert.Equal(t, job1.Script[1], "bar")
-	// allow_failure should be true
-	assert.Equal(t, job1.AllowFailure, true)
-	// image should be empty
-	assert.Equal(t, job1.Image, "")
-
-	job2 := config.Jobs[1]
-	// the second job should only have one command
-	assert.Equal(t, len(job2.Script), 1)
-	// it should equal "do_test"
-	assert.Equal(t, job2.Script[0], "do_test")
-	// image should be "test/image:latest"
-	assert.Equal(t, job2.Image, "test/image:latest")
+	// we should have two lines in our script
+	assert.Equal(t, len(config.Script), 2)
+	// the commands should be "true" and "true"
+	assert.Equal(t, config.Script[0], "true")
+	assert.Equal(t, config.Script[1], "true")
+	// image should be "alpine:latest"
+	assert.Equal(t, config.Image, "alpine:latest")
 }
 
 func TestPipelineExecute(t *testing.T) {

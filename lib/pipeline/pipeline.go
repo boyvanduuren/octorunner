@@ -15,22 +15,12 @@ import (
 )
 
 /*
- A job is one of the core structs in a pipeline configuration, it defines
- a unit of work. Every job belongs to a stage, and all jobs of a stage are run in parallel.
-*/
-type Job struct {
-	Script       []string `yaml:"script"`
-	Image        string   `yaml:"image,omitempty"`
-	AllowFailure bool     `yaml:"allow_failure"`
-}
-
-/*
  A pipeline contains an image name, and a few jobs that need to run on that image.
  For now, every job will be run on a container that uses the Pipeline's image.
 */
 type Pipeline struct {
-	Jobs  []Job  `yaml:"jobs"`
-	Image string `yaml:"image"`
+	Script []string `yaml:"script"`
+	Image  string   `yaml:"image"`
 }
 
 /*
@@ -101,7 +91,7 @@ func (c Pipeline) Execute(ctx context.Context) (int, error) {
 	}
 
 	// create the container
-	commands := strings.Join(c.Jobs[0].Script, " && ")
+	commands := strings.Join(c.Script, " && ")
 	volumeBind := strings.Join([]string{repoData["fsLocation"], WORKDIR}, ":")
 	log.Debugf("Creating container with entrypoint \"%s\" and bound volume \"%s\"", commands, volumeBind)
 	container, err := client.ContainerCreate(ctx,
