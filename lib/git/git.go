@@ -159,12 +159,15 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	repoOwner := payload.Repository.Owner.Name
 	commitId := payload.After
 
+	repoDir := getRepository(ctx, repoName, repoOwner, commitId, repoToken)
+
 	ctx = context.WithValue(ctx, "repoData", map[string]string{
-		"fullName": repoFullName,
-		"commitId": commitId,
+		"fullName":   repoFullName,
+		"commitId":   commitId,
+		"fsLocation": repoDir,
 	})
 
-	pipeline, err := readPipelineConfig(getRepository(ctx, repoName, repoOwner, commitId, repoToken))
+	pipeline, err := readPipelineConfig(repoDir)
 	if err != nil {
 		log.Errorf("Error while reading pipeline configuration: %v", err)
 	}

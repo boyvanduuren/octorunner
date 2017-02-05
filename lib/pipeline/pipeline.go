@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -45,12 +46,21 @@ func ParseConfig(file []byte) (Pipeline, error) {
 	return pipelineConfig, nil
 }
 
+const (
+	WORKDIR = "/var/run/octorunner"
+)
+
 /*
  Execute a given pipeline's first job.
  Todo: Run all the jobs
 */
 func (c Pipeline) Execute(ctx context.Context) (int, error) {
 	log.Info("Starting execution of pipeline")
+
+	repoData, ok := ctx.Value("repoData").(map[string]string)
+	if !ok {
+		return -1, errors.New("Error while reading context")
+	}
 
 	// start image in described in job, execute script
 	client, err := client.NewEnvClient()
@@ -92,12 +102,16 @@ func (c Pipeline) Execute(ctx context.Context) (int, error) {
 
 	// create the container
 	commands := strings.Join(c.Jobs[0].Script, " && ")
-	log.Debugf("Creating container with entrypoint \"%s\"", commands)
+	volumeBind := strings.Join([]string{repoData["fsLocation"], WORKDIR}, ":")
+	log.Debugf("Creating container with entrypoint \"%s\" and bound volume \"%s\"", commands, volumeBind)
 	container, err := client.ContainerCreate(ctx,
 		&container.Config{
 			Image:      c.Image,
-			Entrypoint: strslice.StrSlice{"/bin/sh", "-c", commands}},
-		&container.HostConfig{AutoRemove: false},
+			Entrypoint: strslice.StrSlice{"/bin/sh", "-c", commands},
+			WorkingDir: WORKDIR},
+		&container.HostConfig{
+			AutoRemove: false,
+			Binds:      []string{volumeBind}},
 		&network.NetworkingConfig{},
 		"test")
 	if err != nil {

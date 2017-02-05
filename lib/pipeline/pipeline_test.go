@@ -63,6 +63,12 @@ func TestPipelineExecute(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	ctx = context.WithValue(ctx, "repoData", map[string]string{
+		"fullName":   "boyvanduuren/octorunner",
+		"commitId":   "deadbeef",
+		"fsLocation": "/tmp/extracted",
+	})
+
 	config, _ := pipeline.ParseConfig([]byte(foo))
 	ret, err := config.Execute(ctx)
 	assert.NilError(t, err)
