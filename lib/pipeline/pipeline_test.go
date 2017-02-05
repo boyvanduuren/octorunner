@@ -1,12 +1,12 @@
 package pipeline_test
 
 import (
-	"testing"
-	"github.com/docker/docker/pkg/testutil/assert"
-	"fmt"
-	"github.com/boyvanduuren/octorunner/lib/pipeline"
 	"context"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/boyvanduuren/octorunner/lib/pipeline"
+	"github.com/docker/docker/pkg/testutil/assert"
+	"testing"
 )
 
 const foo = `
@@ -40,8 +40,8 @@ func TestConfigParsing(t *testing.T) {
 	// the first job should have two commands in the script
 	assert.Equal(t, len(job1.Script), 2)
 	// and they should be "foo" and "bar"
-	assert.Equal(t, job1.Script[0], "foo");
-	assert.Equal(t, job1.Script[1], "bar");
+	assert.Equal(t, job1.Script[0], "foo")
+	assert.Equal(t, job1.Script[1], "bar")
 	// allow_failure should be true
 	assert.Equal(t, job1.AllowFailure, true)
 	// image should be empty

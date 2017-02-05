@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	authentication "github.com/boyvanduuren/octorunner/lib/auth"
+	"github.com/boyvanduuren/octorunner/lib/pipeline"
 	"github.com/boyvanduuren/octorunner/lib/zip"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
@@ -17,8 +19,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"github.com/boyvanduuren/octorunner/lib/pipeline"
-	"errors"
 )
 
 const (
@@ -27,7 +27,7 @@ const (
 	SIGNATUREHEADER = "X-Hub-Signature"
 	TMPDIR_PREFIX   = "octorunner-"
 	TMPFILE_PREFIX  = "archive-"
-	PIPELINEFILE = ".octorunner"
+	PIPELINEFILE    = ".octorunner"
 )
 
 var Auth authentication.AuthMethod
