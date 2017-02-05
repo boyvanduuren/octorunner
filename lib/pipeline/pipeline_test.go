@@ -5,16 +5,18 @@ import (
 	"github.com/docker/docker/pkg/testutil/assert"
 	"fmt"
 	"github.com/boyvanduuren/octorunner/lib/pipeline"
+	"context"
+	log "github.com/Sirupsen/logrus"
 )
 
 const foo = `
-image: test-foo
+image: debian:latest
 
 jobs:
   -
     script:
-      - foo
-      - bar
+      - true
+      - true
     allow_failure: true
   -
     script:
@@ -24,6 +26,7 @@ jobs:
 `
 
 func TestConfigParsing(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	config, err := pipeline.ParseConfig([]byte(foo))
 	if err != nil {
 		fmt.Printf("Error: %v", err)
@@ -54,6 +57,14 @@ func TestConfigParsing(t *testing.T) {
 }
 
 func TestPipelineExecute(t *testing.T) {
+	// todo: this test now depends on a working docker host set in the environment, we need to mock this
+
+	log.SetLevel(log.DebugLevel)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	config, _ := pipeline.ParseConfig([]byte(foo))
-	assert.Equal(t, config.Execute(), 0)
+	ret, err := config.Execute(ctx)
+	assert.NilError(t, err)
+	assert.Equal(t, ret, 0)
 }
