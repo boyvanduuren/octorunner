@@ -9,7 +9,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	authentication "github.com/boyvanduuren/octorunner/lib/auth"
 	"github.com/boyvanduuren/octorunner/lib/pipeline"
-	"github.com/boyvanduuren/octorunner/lib/zip"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 	"io"
@@ -19,6 +18,8 @@ import (
 	"os"
 	"path"
 	"strings"
+	"path/filepath"
+	"archive/zip"
 )
 
 const (
@@ -245,7 +246,7 @@ func getRepository(httpClient *http.Client, gitClient *github.Client, repoName s
 	}
 	log.Debug("Archive downloaded to ", archivePath.Name())
 
-	err = zip.Unzip(archivePath.Name(), tmpDir)
+	err = unzip(archivePath.Name(), tmpDir)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Error while unpacking archive: %v", err))
 	}
@@ -311,4 +312,50 @@ func checkDirNotExists(dir string) bool {
 
 func gitSetState(git *github.Client, state string, owner string, repo string, commit string) {
 	git.Repositories.CreateStatus(owner, repo, commit, &github.RepoStatus{State: &state})
+}
+
+// Extract a zip file to a destination.
+// By "swtdrgn" from http://stackoverflow.com/a/24430720
+func unzip(src, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		fpath := filepath.Join(dest, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(fpath, f.Mode())
+		} else {
+			var fdir string
+			if lastIndex := strings.LastIndex(fpath, string(os.PathSeparator)); lastIndex > -1 {
+				fdir = fpath[:lastIndex]
+			}
+
+			err = os.MkdirAll(fdir, f.Mode())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			f, err := os.OpenFile(
+				fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			_, err = io.Copy(f, rc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
