@@ -97,7 +97,7 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	payloadBody, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		log.Error("Error while reading payload: %v", err)
+		log.Errorf("Error while reading payload: %v", err)
 	} else {
 		log.Debug("Received body ", string(payloadBody))
 	}
@@ -184,7 +184,7 @@ func handlePush(ctx context.Context, payload hookPayload) {
 		"fsLocation": repoDir,
 	})
 
-	pipeline, err := readPipelineConfig(repoDir)
+	repoPipeline, err := readPipelineConfig(repoDir)
 	if err != nil {
 		log.Errorf("Error while reading pipeline configuration: %v", err)
 		return
@@ -193,7 +193,7 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	// set state of commit to pending
 	log.Debug("Setting state to pending")
 	gitSetState(gitClient, "pending", repoOwner, repoName, commitId)
-	exitcode, err := pipeline.Execute(ctx)
+	exitcode, err := repoPipeline.Execute(ctx)
 	if err != nil {
 		log.Errorf("Error while executing pipeline: %v", err)
 		gitSetState(gitClient, "error", repoOwner, repoName, commitId)
