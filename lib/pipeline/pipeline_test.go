@@ -22,19 +22,22 @@ func TestConfigParsing(t *testing.T) {
 	}
 
 	// we should have two lines in our script
-	if len(config.Script) != 2 {
-		t.Fatalf("Expected config.Script to contain 2 elements")
+	expectedInt := 2
+	if len(config.Script) != expectedInt {
+		t.Fatalf("Expected config.Script to contain %d elements")
 	}
 	// the commands should be "true" and "true"
-	if config.Script[0] != "true" {
-		t.Fatalf("Expected config.Script[0] to be \"true\"")
+	expectedString := "true"
+	if config.Script[0] != expectedString {
+		t.Fatalf("Expected config.Script[0] to be \"%s\"", expectedString)
 	}
 	if config.Script[1] != "true" {
-		t.Fatalf("Expected config.Script[0] to be \"true\"")
+		t.Fatalf("Expected config.Script[1] to be \"%s\"", expectedString)
 	}
 	// image should be "alpine:latest"
-	if config.Image != "alpine:latest" {
-		t.Fatalf("Expected config.Image to be \"alpine:latest\"")
+	expectedString = "alpine:latest"
+	if config.Image != expectedString {
+		t.Fatalf("Expected config.Image to be \"%s\"", expectedString)
 	}
 }
 
@@ -67,7 +70,7 @@ func (client MockDockerClient) ImageList(ctx context.Context, options types.Imag
 	if client.Err != nil {
 		return nil, client.Err
 	} else {
-		return []types.ImageSummary{types.ImageSummary{RepoTags: client.Images}}, nil
+		return []types.ImageSummary{{RepoTags: client.Images}}, nil
 	}
 }
 
