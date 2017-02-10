@@ -1,3 +1,9 @@
-image: alpine:latest
+image: golang:latest
 script:
-  - test -f octorunner.go
+  - go get -u github.com/kardianos/govendor
+  - cd /go
+  - mkdir -p src/github.com/boyvanduuren/
+  - ln -s /var/run/octorunner /go/src/github.com/boyvanduuren/octorunner
+  - cd /go/src/github.com/boyvanduuren/octorunner
+  - govendor sync
+  - go test ./...
