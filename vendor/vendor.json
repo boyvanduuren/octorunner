@@ -120,12 +120,6 @@
 			"revisionTime": "2016-12-15T12:23:18Z"
 		},
 		{
-			"checksumSHA1": "GIjZk28XUD2l0CBFZPRfkwz16pU=",
-			"path": "github.com/docker/docker/pkg/testutil/assert",
-			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",
-			"revisionTime": "2016-12-15T12:23:18Z"
-		},
-		{
 			"checksumSHA1": "t04WnJ2QukyvpgAG78jV+yCgYlU=",
 			"path": "github.com/docker/docker/pkg/tlsconfig",
 			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",

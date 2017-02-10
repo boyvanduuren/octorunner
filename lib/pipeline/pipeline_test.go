@@ -2,8 +2,6 @@ package pipeline
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/testutil/assert"
 	"testing"
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
@@ -17,7 +15,6 @@ script:
 `
 
 func TestConfigParsing(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
 	config, err := ParseConfig([]byte(foo))
 	if err != nil {
 		fmt.Printf("Error: %v", err)
@@ -25,20 +22,25 @@ func TestConfigParsing(t *testing.T) {
 	}
 
 	// we should have two lines in our script
-	assert.Equal(t, len(config.Script), 2)
+	if len(config.Script) != 2 {
+		t.Fatalf("Expected config.Script to contain 2 elements")
+	}
 	// the commands should be "true" and "true"
-	assert.Equal(t, config.Script[0], "true")
-	assert.Equal(t, config.Script[1], "true")
+	if config.Script[0] != "true" {
+		t.Fatalf("Expected config.Script[0] to be \"true\"")
+	}
+	if config.Script[1] != "true" {
+		t.Fatalf("Expected config.Script[0] to be \"true\"")
+	}
 	// image should be "alpine:latest"
-	assert.Equal(t, config.Image, "alpine:latest")
+	if config.Image != "alpine:latest" {
+		t.Fatalf("Expected config.Image to be \"alpine:latest\"")
+	}
 }
 
 func TestPipelineExecute(t *testing.T) {
 	// todo: this test now depends on a working docker host set in the environment, we need to mock this
-
-	log.SetLevel(log.DebugLevel)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.TODO()
 
 	ctx = context.WithValue(ctx, "repoData", map[string]string{
 		"fullName":   "boyvanduuren/octorunner",
@@ -48,8 +50,12 @@ func TestPipelineExecute(t *testing.T) {
 
 	config, _ := ParseConfig([]byte(foo))
 	ret, err := config.Execute(ctx)
-	assert.NilError(t, err)
-	assert.Equal(t, ret, 0)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if ret != 0 {
+		t.Fatalf("Expected 0 from config.Execute(ctx), got %d", ret)
+	}
 }
 
 type MockDockerClient struct {
