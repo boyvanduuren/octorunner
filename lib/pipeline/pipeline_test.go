@@ -1,12 +1,12 @@
-package pipeline_test
+package pipeline
 
 import (
-	"context"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/boyvanduuren/octorunner/lib/pipeline"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"testing"
+	"github.com/docker/docker/api/types"
+	"golang.org/x/net/context"
 )
 
 const foo = `
@@ -18,7 +18,7 @@ script:
 
 func TestConfigParsing(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
-	config, err := pipeline.ParseConfig([]byte(foo))
+	config, err := ParseConfig([]byte(foo))
 	if err != nil {
 		fmt.Printf("Error: %v", err)
 		t.Fail()
@@ -46,8 +46,32 @@ func TestPipelineExecute(t *testing.T) {
 		"fsLocation": "/tmp/extracted",
 	})
 
-	config, _ := pipeline.ParseConfig([]byte(foo))
+	config, _ := ParseConfig([]byte(foo))
 	ret, err := config.Execute(ctx)
 	assert.NilError(t, err)
 	assert.Equal(t, ret, 0)
+}
+
+type MockDockerClient struct {
+	Images []string
+	Err error
+}
+
+func (client MockDockerClient) ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error) {
+	if client.Err != nil {
+		return nil, client.Err
+	} else {
+		return []types.ImageSummary{types.ImageSummary{RepoTags: client.Images}}, nil
+	}
+}
+
+func TestImageExists(t *testing.T) {
+	client := MockDockerClient{Images: []string{"alpine:latest"}, Err: nil}
+	exists, err := imageExists(context.TODO(), client, "alpine")
+	if err != nil {
+		t.Fatalf("Expected no error, but got: %v")
+	}
+	if exists == false {
+		t.Fatalf("Expected to find alpine, but didn't")
+	}
 }

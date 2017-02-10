@@ -2,7 +2,6 @@ package git
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +19,7 @@ import (
 	"strings"
 	"path/filepath"
 	"archive/zip"
+	"golang.org/x/net/context"
 )
 
 const (

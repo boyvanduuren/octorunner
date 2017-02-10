@@ -1,7 +1,7 @@
 package pipeline
 
 import (
-	"context"
+	"golang.org/x/net/context"
 	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -13,6 +13,10 @@ import (
 	"io/ioutil"
 	"strings"
 )
+
+type ImageLister interface {
+	ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error)
+}
 
 /*
  A pipeline contains an image name, and a few jobs that need to run on that image.
@@ -59,20 +63,7 @@ func (c Pipeline) Execute(ctx context.Context) (int, error) {
 	}
 	defer client.Close()
 
-	// check if image exists
-	log.Debugf("Looking if image \"%s\" is present on docker host", c.Image)
-	list, err := client.ImageList(ctx, types.ImageListOptions{})
-	if err != nil {
-		return -1, err
-	}
-	imageFound := false
-	for _, summary := range list {
-		for _, tag := range summary.RepoTags {
-			if c.Image == tag || c.Image == strings.Split(tag, ":")[0] {
-				imageFound = true
-			}
-		}
-	}
+	imageFound, err := imageExists(ctx, client, c.Image)
 
 	if !imageFound {
 		// todo: enable registry authorization
@@ -136,4 +127,23 @@ func (c Pipeline) Execute(ctx context.Context) (int, error) {
 	}
 
 	return inspectData.State.ExitCode, nil
+}
+
+func imageExists(ctx context.Context, client ImageLister, imageName string) (bool, error) {
+	// check if image exists
+	log.Debugf("Looking if image \"%s\" is present on docker host", imageName)
+	imageFound := false
+	list, err := client.ImageList(ctx, types.ImageListOptions{})
+	if err != nil {
+		return imageFound, err
+	}
+	for _, summary := range list {
+		for _, tag := range summary.RepoTags {
+			if imageName == tag || imageName == strings.Split(tag, ":")[0] {
+				imageFound = true
+			}
+		}
+	}
+
+	return imageFound, nil
 }
