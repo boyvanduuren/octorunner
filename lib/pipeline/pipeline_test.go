@@ -1,11 +1,11 @@
 package pipeline
 
 import (
+	"errors"
 	"fmt"
-	"testing"
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
-	"errors"
+	"testing"
 )
 
 const foo = `
@@ -64,7 +64,7 @@ func TestConfigParsing(t *testing.T) {
 
 type MockDockerClient struct {
 	Images []string
-	Err error
+	Err    error
 }
 
 func (client MockDockerClient) ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error) {

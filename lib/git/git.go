@@ -1,6 +1,7 @@
 package git
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	authentication "github.com/boyvanduuren/octorunner/lib/auth"
 	"github.com/boyvanduuren/octorunner/lib/pipeline"
 	"github.com/google/go-github/github"
+	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"io"
 	"io/ioutil"
@@ -16,10 +18,8 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"strings"
 	"path/filepath"
-	"archive/zip"
-	"golang.org/x/net/context"
+	"strings"
 )
 
 const (

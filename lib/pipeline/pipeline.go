@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"golang.org/x/net/context"
 	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -9,10 +8,11 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/client"
+	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"strings"
 	"regexp"
+	"strings"
 )
 
 type ImageLister interface {
@@ -152,9 +152,9 @@ func imageExists(ctx context.Context, client ImageLister, imageName string) (boo
 /*
  Container names need to match [a-zA-Z_.-], so filter out everything that doesn't match.
  Except "-", which is translated to "_".
-  */
+*/
 func containerName(repoFullName string, commitId string) string {
-	mapping := func (r rune) rune {
+	mapping := func(r rune) rune {
 		match, err := regexp.Match("[a-zA-Z_.-]", []byte{byte(r)})
 		if err != nil {
 			return -1
