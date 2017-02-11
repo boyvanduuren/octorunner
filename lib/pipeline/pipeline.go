@@ -38,6 +38,9 @@ type ContainerCreater interface {
 		networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error)
 }
 
+/*
+ Any client that's used to execute a pipeline needs to implement this interface.
+*/
 type PipelineExecutionClient interface {
 	ImageLister
 	ImagePuller

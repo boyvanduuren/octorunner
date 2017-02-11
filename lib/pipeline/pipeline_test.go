@@ -14,15 +14,15 @@ import (
 	"testing"
 )
 
-const foo = `
+func TestConfigParsing(t *testing.T) {
+	yaml := `
 image: alpine:latest
 script:
   - true
   - true
 `
 
-func TestConfigParsing(t *testing.T) {
-	config, err := ParseConfig([]byte(foo))
+	config, err := ParseConfig([]byte(yaml))
 	if err != nil {
 		fmt.Printf("Error: %v", err)
 		t.Fail()
@@ -45,6 +45,12 @@ func TestConfigParsing(t *testing.T) {
 	expectedString = "alpine:latest"
 	if config.Image != expectedString {
 		t.Fatalf("Expected config.Image to be \"%s\"", expectedString)
+	}
+
+	yaml = "won't parse"
+	_, err = ParseConfig([]byte(yaml))
+	if err == nil {
+		t.Fail()
 	}
 }
 
