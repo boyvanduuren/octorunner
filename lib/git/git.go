@@ -9,6 +9,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	authentication "github.com/boyvanduuren/octorunner/lib/auth"
 	"github.com/boyvanduuren/octorunner/lib/pipeline"
+	"github.com/docker/docker/client"
 	"github.com/google/go-github/github"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -193,7 +194,17 @@ func handlePush(ctx context.Context, payload hookPayload) {
 	// set state of commit to pending
 	log.Debug("Setting state to pending")
 	gitSetState(gitClient, "pending", repoOwner, repoName, commitId)
-	exitcode, err := repoPipeline.Execute(ctx)
+
+	// create Docker client
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		log.Errorf("Error while creating connection to Docker: %q", err)
+		gitSetState(gitClient, "error", repoOwner, repoName, commitId)
+		return
+	}
+	defer cli.Close()
+
+	exitcode, err := repoPipeline.Execute(ctx, cli)
 	if err != nil {
 		log.Errorf("Error while executing pipeline: %v", err)
 		gitSetState(gitClient, "error", repoOwner, repoName, commitId)

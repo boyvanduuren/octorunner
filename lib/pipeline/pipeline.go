@@ -17,7 +17,7 @@ import (
 
 /*
  ImageLister implementations can be used to list available images on a Docker host.
- */
+*/
 type ImageLister interface {
 	ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error)
 }
@@ -55,7 +55,7 @@ const (
 /*
  Execute a pipeline, and return the exit code of its script.
 */
-func (c Pipeline) Execute(ctx context.Context) (int, error) {
+func (c Pipeline) Execute(ctx context.Context, cli *client.Client) (int, error) {
 	log.Info("Starting execution of pipeline")
 
 	repoData, ok := ctx.Value("repoData").(map[string]string)
@@ -64,18 +64,12 @@ func (c Pipeline) Execute(ctx context.Context) (int, error) {
 	}
 
 	// start image in described in job, execute script
-	client, err := client.NewEnvClient()
-	if err != nil {
-		return -1, err
-	}
-	defer client.Close()
-
-	imageFound, err := imageExists(ctx, client, c.Image)
+	imageFound, err := imageExists(ctx, cli, c.Image)
 
 	if !imageFound {
 		// todo: enable registry authorization
 		log.Infof("Pulling image \"%s\"", c.Image)
-		reader, err := client.ImagePull(ctx, c.Image, types.ImagePullOptions{})
+		reader, err := cli.ImagePull(ctx, c.Image, types.ImagePullOptions{})
 		if err != nil {
 			return -1, err
 		}
@@ -92,7 +86,7 @@ func (c Pipeline) Execute(ctx context.Context) (int, error) {
 	commands := strings.Join(c.Script, " && ")
 	volumeBind := strings.Join([]string{repoData["fsLocation"], WORKDIR}, ":")
 	log.Debugf("Creating container with entrypoint \"%s\" and bound volume \"%s\"", commands, volumeBind)
-	container, err := client.ContainerCreate(ctx,
+	container, err := cli.ContainerCreate(ctx,
 		&container.Config{
 			Image:      c.Image,
 			Entrypoint: strslice.StrSlice{"/bin/sh", "-c", commands},
@@ -112,23 +106,23 @@ func (c Pipeline) Execute(ctx context.Context) (int, error) {
 	log.Debugf("Container with ID \"%s\" created", container.ID)
 
 	// start the container
-	err = client.ContainerStart(ctx, container.ID, types.ContainerStartOptions{})
+	err = cli.ContainerStart(ctx, container.ID, types.ContainerStartOptions{})
 	if err != nil {
 		return -1, err
 	}
 
 	// wait until the container is done
-	client.ContainerWait(ctx, container.ID)
+	cli.ContainerWait(ctx, container.ID)
 
 	// inspect the finished container so we can get the exitcode
-	inspectData, err := client.ContainerInspect(ctx, container.ID)
+	inspectData, err := cli.ContainerInspect(ctx, container.ID)
 	if err != nil {
 		return -1, err
 	}
 	log.Infof("Container \"%s\" done, exit code: %d", container.ID, inspectData.State.ExitCode)
 
 	log.Debugf("Removing container \"%s\"", container.ID)
-	err = client.ContainerRemove(ctx, container.ID, types.ContainerRemoveOptions{RemoveVolumes: true})
+	err = cli.ContainerRemove(ctx, container.ID, types.ContainerRemoveOptions{RemoveVolumes: true})
 	if err != nil {
 		return -1, err
 	}
