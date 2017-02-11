@@ -60,13 +60,12 @@ type hookPayload struct {
 // If the received event is not supported we log an error and return without doing anything.
 func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Map Github webhook events to functions that handle them
-	supportedEvents := map[string]func(context.Context, hookPayload){
+	supportedEvents := map[string]func(hookPayload){
 		"push": handlePush,
 	}
 
-	// Create a context for this request
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// Return 200 to the client
+	w.WriteHeader(200)
 
 	log.Info("Received request on listener")
 	// Request might be proxied, so check if there's an X-Forwarded-For header
@@ -80,7 +79,7 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	log.Debug("Request from " + r.UserAgent() + " at " + remoteAddr)
 
 	// Check which event we received and assign the appropriate handler to eventHandler
-	var eventHandler func(context.Context, hookPayload)
+	var eventHandler func(hookPayload)
 	event := r.Header.Get(EVENTHEADER)
 	if event == "" {
 		log.Error("Header \"" + EVENTHEADER + "\" not set, returning")
@@ -133,13 +132,17 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	eventHandler(ctx, payload)
+	go eventHandler(payload)
 }
 
 // Handle a push event to a Github repository. We will need to look at the settings for octorunner
 // in this repository and take action accordingly.
-func handlePush(ctx context.Context, payload hookPayload) {
+func handlePush(payload hookPayload) {
 	log.Info("Handling received push event")
+
+	// Create a context for this request
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	repoPrivate := payload.Repository.Private
 	repoFullName := payload.Repository.FullName
