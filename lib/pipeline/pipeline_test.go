@@ -141,15 +141,27 @@ func TestImageExists(t *testing.T) {
 }
 
 func TestContainerName(t *testing.T) {
-	actual := containerName("boyvanduuren/octorunner", "deadbeef")
-	expected := "boyvanduuren_octorunner-deadbeef"
-	if actual != expected {
-		t.Fatalf("Expected %s, but got %s", expected, actual)
+	cases := []struct {
+		repoFullName  string
+		commitId      string
+		expectedValue string
+	}{
+		{
+			repoFullName:  "boyvanduuren/octorunner",
+			commitId:      "deadbeef",
+			expectedValue: "boyvanduuren_octorunner-deadbeef",
+		},
+		{
+			repoFullName:  "t#st!ng_some.STUFF-()",
+			commitId:      "cafebabe",
+			expectedValue: "tstng_some.STUFF--cafebabe",
+		},
 	}
 
-	actual = containerName("t#st!ng_some.STUFF-()", "cafebabe")
-	expected = "tstng_some.STUFF--cafebabe"
-	if actual != expected {
-		t.Fatalf("Expected %s, but got %s", expected, actual)
+	for _, testCase := range cases {
+		val := containerName(testCase.repoFullName, testCase.commitId)
+		if testCase.expectedValue != val {
+			t.Errorf("Expected %s, but got %s", testCase.expectedValue, val)
+		}
 	}
 }
