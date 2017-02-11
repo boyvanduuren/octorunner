@@ -84,3 +84,17 @@ func TestImageExists(t *testing.T) {
 		t.Fatalf("Expected to find alpine, but didn't")
 	}
 }
+
+func TestContainerName(t *testing.T) {
+	actual := containerName("boyvanduuren/octorunner", "deadbeef")
+	expected := "boyvanduuren_octorunner-deadbeef"
+	if actual != expected {
+		t.Fatalf("Expected %s, but got %s", expected, actual)
+	}
+
+	actual = containerName("t#st!ng_some.STUFF-()", "cafebabe")
+	expected = "tstng_some.STUFF--cafebabe"
+	if actual != expected {
+		t.Fatalf("Expected %s, but got %s", expected, actual)
+	}
+}

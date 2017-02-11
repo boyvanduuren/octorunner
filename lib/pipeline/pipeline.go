@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"strings"
+	"regexp"
 )
 
 type ImageLister interface {
@@ -94,7 +95,7 @@ func (c Pipeline) Execute(ctx context.Context) (int, error) {
 			AutoRemove: false,
 			Binds:      []string{volumeBind}},
 		&network.NetworkingConfig{},
-		"test")
+		containerName(repoData["fullName"], repoData["commitId"]))
 	if err != nil {
 		return -1, err
 	}
@@ -146,4 +147,28 @@ func imageExists(ctx context.Context, client ImageLister, imageName string) (boo
 	}
 
 	return imageFound, nil
+}
+
+/*
+ Container names need to match [a-zA-Z_.-], so filter out everything that doesn't match.
+ Except "-", which is translated to "_".
+  */
+func containerName(repoFullName string, commitId string) string {
+	mapping := func (r rune) rune {
+		match, err := regexp.Match("[a-zA-Z_.-]", []byte{byte(r)})
+		if err != nil {
+			return -1
+		}
+		if match == false {
+			if string(r) == "/" {
+				return []rune("_")[0]
+			} else {
+				return -1
+			}
+		} else {
+			return r
+		}
+	}
+
+	return strings.Join([]string{strings.Map(mapping, repoFullName), commitId}, "-")
 }
