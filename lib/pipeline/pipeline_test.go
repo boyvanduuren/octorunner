@@ -25,7 +25,7 @@ func TestConfigParsing(t *testing.T) {
 	// we should have two lines in our script
 	expectedInt := 2
 	if len(config.Script) != expectedInt {
-		t.Fatalf("Expected config.Script to contain %d elements")
+		t.Fatalf("Expected config.Script to contain %d elements", expectedInt)
 	}
 	// the commands should be "true" and "true"
 	expectedString := "true"
@@ -79,10 +79,10 @@ func TestImageExists(t *testing.T) {
 	client := MockDockerClient{Images: []string{"alpine:latest"}, Err: nil}
 	exists, err := imageExists(context.TODO(), client, "alpine")
 	if err != nil {
-		t.Fatalf("Expected no error, but got: %v")
+		t.Fatalf("Expected no error, but got: %v", err)
 	}
 	if exists == false {
-		t.Fatalf("Expected to find alpine, but didn't")
+		t.Fatal("Expected to find alpine, but didn't")
 	}
 
 	client.Err = errors.New("Testing an error")
