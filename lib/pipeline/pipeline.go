@@ -15,13 +15,18 @@ import (
 	"strings"
 )
 
+/*
+ ImageLister implementations can be used to list available images on a Docker host.
+ */
 type ImageLister interface {
 	ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error)
 }
 
 /*
- A pipeline contains an image name, and a few jobs that need to run on that image.
- For now, every job will be run on a container that uses the Pipeline's image.
+ A pipeline contains an image name, and an array containing commands that are executed when
+ the pipeline is executed.
+ When the pipeline is executed, the script array will be concatenated as a single script, of which every
+ command needs to return 0 for the script to pass as successful.
 */
 type Pipeline struct {
 	Script []string `yaml:"script"`
@@ -29,7 +34,8 @@ type Pipeline struct {
 }
 
 /*
- Take a byte array and return a Pipeline.
+ ParseConfig deserializes .octorunner.y[a]ml files contained in code repositories.
+ See https://github.com/boyvanduuren/octorunner#adding-a-test-to-your-repository.
 */
 func ParseConfig(file []byte) (Pipeline, error) {
 	var pipelineConfig Pipeline
@@ -42,12 +48,12 @@ func ParseConfig(file []byte) (Pipeline, error) {
 }
 
 const (
+	// Extracted repositories are mounted as volumes on containers to WORKDIR.
 	WORKDIR = "/var/run/octorunner"
 )
 
 /*
- Execute a given pipeline's first job.
- Todo: Run all the jobs
+ Execute a pipeline, and return the exit code of its script.
 */
 func (c Pipeline) Execute(ctx context.Context) (int, error) {
 	log.Info("Starting execution of pipeline")
@@ -130,6 +136,10 @@ func (c Pipeline) Execute(ctx context.Context) (int, error) {
 	return inspectData.State.ExitCode, nil
 }
 
+/*
+Check whether a particular image is available on a Docker host. We need this information to
+decide whether or not to pull the image.
+*/
 func imageExists(ctx context.Context, client ImageLister, imageName string) (bool, error) {
 	// check if image exists
 	log.Debugf("Looking if image \"%s\" is present on docker host", imageName)
