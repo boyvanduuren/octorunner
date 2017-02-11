@@ -266,6 +266,296 @@ func TestContainerCreate(t *testing.T) {
 	}
 }
 
+type MockPipelineExecutionClient struct {
+	ListErr    error
+	ListImages []string
+	PullErr    error
+	PullOut    io.ReadCloser
+	CreateErr  error
+	CreateID   string
+	StartErr   error
+	WaitErr    error
+	InspectErr error
+	ExitCode   int
+	RemoveErr  error
+}
+
+func (client MockPipelineExecutionClient) ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error) {
+	if client.ListErr != nil {
+		return nil, client.ListErr
+	} else {
+		return []types.ImageSummary{{RepoTags: client.ListImages}}, nil
+	}
+}
+
+func (client MockPipelineExecutionClient) ImagePull(ctx context.Context, imageName string, options types.ImagePullOptions) (io.ReadCloser, error) {
+	if client.PullErr != nil {
+		return nil, client.PullErr
+	} else {
+		return client.PullOut, nil
+	}
+}
+
+func (client MockPipelineExecutionClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig,
+	networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error) {
+	if client.CreateErr != nil {
+		return container.ContainerCreateCreatedBody{}, client.CreateErr
+	}
+
+	container := container.ContainerCreateCreatedBody{
+		ID: client.CreateID,
+	}
+
+	return container, nil
+}
+
+func (client MockPipelineExecutionClient) ContainerStart(ctx context.Context, containerID string, options types.ContainerStartOptions) error {
+	return client.StartErr
+}
+
+func (client MockPipelineExecutionClient) ContainerWait(ctx context.Context, containerID string) (int64, error) {
+	return 0, client.WaitErr
+}
+
+func (client MockPipelineExecutionClient) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+	if client.InspectErr == nil {
+		return types.ContainerJSON{
+			ContainerJSONBase: &types.ContainerJSONBase{
+				State: &types.ContainerState{
+					ExitCode: client.ExitCode,
+				},
+			}}, nil
+	} else {
+		return types.ContainerJSON{}, client.InspectErr
+	}
+}
+
+func (client MockPipelineExecutionClient) ContainerRemove(ctx context.Context, containerID string, options types.ContainerRemoveOptions) error {
+	return client.RemoveErr
+}
+
+func TestPipelineExecute(t *testing.T) {
+	cases := []struct {
+		p             Pipeline
+		c             MockPipelineExecutionClient
+		ctx           context.Context
+		expectedValue int
+		expectedError error
+	}{
+		// Invalid context
+		{
+			p: Pipeline{
+				Image: "golang:latest",
+				Script: []string{
+					"true",
+				},
+			},
+			c: MockPipelineExecutionClient{
+				ListErr: nil,
+				ListImages: []string{
+					"golang:latest",
+				},
+				PullErr:   nil,
+				PullOut:   ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
+				CreateErr: nil,
+				CreateID:  "foo",
+			},
+			ctx:           context.TODO(),
+			expectedValue: -1,
+			expectedError: errors.New("Error while reading context"),
+		},
+		// Successful, image exists, no errors
+		{
+			p: Pipeline{
+				Image: "golang:latest",
+				Script: []string{
+					"true",
+				},
+			},
+			c: MockPipelineExecutionClient{
+				ListErr: nil,
+				ListImages: []string{
+					"golang:latest",
+				},
+				PullErr:   nil,
+				PullOut:   ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
+				CreateErr: nil,
+				CreateID:  "foo",
+			},
+			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+				"fullName":   "boyvanduuren/octorunner",
+				"fsLocation": "/tmp/",
+				"commitId":   "deadbeef",
+			}),
+			expectedValue: 0,
+			expectedError: nil,
+		},
+		// Image doesn't exist, but we can succesfully pull it
+		{
+			p: Pipeline{
+				Image: "archlinux:latest",
+				Script: []string{
+					"true",
+				},
+			},
+			c: MockPipelineExecutionClient{
+				ListErr: nil,
+				ListImages: []string{
+					"golang:latest",
+				},
+				PullErr:   nil,
+				PullOut:   ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
+				CreateErr: nil,
+				CreateID:  "foo",
+			},
+			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+				"fullName":   "boyvanduuren/octorunner",
+				"fsLocation": "/tmp/",
+				"commitId":   "deadbeef",
+			}),
+			expectedValue: 0,
+			expectedError: nil,
+		},
+		// Image doesn't exist, and we get an error while pulling
+		{
+			p: Pipeline{
+				Image: "archlinux:latest",
+				Script: []string{
+					"true",
+				},
+			},
+			c: MockPipelineExecutionClient{
+				ListErr: nil,
+				ListImages: []string{
+					"golang:latest",
+				},
+				PullErr:   errors.New("It failed!"),
+				PullOut:   ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
+				CreateErr: nil,
+				CreateID:  "foo",
+			},
+			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+				"fullName":   "boyvanduuren/octorunner",
+				"fsLocation": "/tmp/",
+				"commitId":   "deadbeef",
+			}),
+			expectedValue: -1,
+			expectedError: errors.New(fmt.Sprintf("Error while pulling %q: %q", "archlinux:latest", "It failed!")),
+		},
+		// Error while creating container
+		{
+			p: Pipeline{
+				Image: "archlinux:latest",
+				Script: []string{
+					"true",
+				},
+			},
+			c: MockPipelineExecutionClient{
+				ListErr: nil,
+				ListImages: []string{
+					"golang:latest",
+				},
+				PullErr:   nil,
+				PullOut:   ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
+				CreateErr: errors.New("Creation error"),
+				CreateID:  "foo",
+			},
+			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+				"fullName":   "boyvanduuren/octorunner",
+				"fsLocation": "/tmp/",
+				"commitId":   "deadbeef",
+			}),
+			expectedValue: -1,
+			expectedError: errors.New(fmt.Sprintf("Error while creating container: %q", "Creation error")),
+		},
+		// Error while starting container
+		{
+			p: Pipeline{
+				Image: "archlinux:latest",
+				Script: []string{
+					"true",
+				},
+			},
+			c: MockPipelineExecutionClient{
+				ListErr: nil,
+				ListImages: []string{
+					"golang:latest",
+				},
+				PullOut:  ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
+				CreateID: "foo",
+				StartErr: errors.New("Start error"),
+			},
+			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+				"fullName":   "boyvanduuren/octorunner",
+				"fsLocation": "/tmp/",
+				"commitId":   "deadbeef",
+			}),
+			expectedValue: -1,
+			expectedError: errors.New(fmt.Sprintf("Error while starting container: %q", "Start error")),
+		},
+		// Error while inspecting container
+		{
+			p: Pipeline{
+				Image: "archlinux:latest",
+				Script: []string{
+					"true",
+				},
+			},
+			c: MockPipelineExecutionClient{
+				ListErr: nil,
+				ListImages: []string{
+					"archlinux:latest",
+				},
+				PullOut:    ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
+				CreateID:   "foo",
+				InspectErr: errors.New("Inspection error"),
+			},
+			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+				"fullName":   "boyvanduuren/octorunner",
+				"fsLocation": "/tmp/",
+				"commitId":   "deadbeef",
+			}),
+			expectedValue: -1,
+			expectedError: errors.New(fmt.Sprintf("Error while inspecting container: %q", "Inspection error")),
+		},
+		// Error while removing container
+		{
+			p: Pipeline{
+				Image: "archlinux:latest",
+				Script: []string{
+					"true",
+				},
+			},
+			c: MockPipelineExecutionClient{
+				ListErr: nil,
+				ListImages: []string{
+					"archlinux:latest",
+				},
+				PullOut:   ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
+				CreateID:  "foo",
+				RemoveErr: errors.New("Remove error"),
+			},
+			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+				"fullName":   "boyvanduuren/octorunner",
+				"fsLocation": "/tmp/",
+				"commitId":   "deadbeef",
+			}),
+			expectedValue: -1,
+			expectedError: errors.New(fmt.Sprintf("Error while removing container: %q", "Remove error")),
+		},
+	}
+
+	for _, testCase := range cases {
+		val, err := testCase.p.Execute(testCase.ctx, testCase.c)
+		if !reflect.DeepEqual(err, testCase.expectedError) {
+			t.Errorf("Expected err to be %q, but it was %q", testCase.expectedError, err)
+		}
+		if testCase.expectedValue != val {
+			t.Errorf("Expected %d, but got %d", testCase.expectedValue, val)
+		}
+	}
+}
+
 func TestContainerName(t *testing.T) {
 	cases := []struct {
 		repoFullName  string

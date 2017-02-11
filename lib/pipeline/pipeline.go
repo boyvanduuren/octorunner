@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 	"io"
@@ -37,6 +36,16 @@ type ImagePuller interface {
 type ContainerCreater interface {
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig,
 		networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error)
+}
+
+type PipelineExecutionClient interface {
+	ImageLister
+	ImagePuller
+	ContainerCreater
+	ContainerStart(ctx context.Context, containerID string, options types.ContainerStartOptions) error
+	ContainerWait(ctx context.Context, containerID string) (int64, error)
+	ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error)
+	ContainerRemove(ctx context.Context, containerID string, options types.ContainerRemoveOptions) error
 }
 
 /*
@@ -72,7 +81,7 @@ const (
 /*
  Execute a pipeline, and return the exit code of its script.
 */
-func (c Pipeline) Execute(ctx context.Context, cli *client.Client) (int, error) {
+func (c Pipeline) Execute(ctx context.Context, cli PipelineExecutionClient) (int, error) {
 	log.Info("Starting execution of pipeline")
 
 	repoData, ok := ctx.Value("repoData").(map[string]string)
@@ -103,7 +112,7 @@ func (c Pipeline) Execute(ctx context.Context, cli *client.Client) (int, error) 
 
 	err = cli.ContainerStart(ctx, containerId, types.ContainerStartOptions{})
 	if err != nil {
-		return -1, err
+		return -1, errors.New(fmt.Sprintf("Error while starting container: %q", err))
 	}
 
 	// wait until the container is done
@@ -112,14 +121,14 @@ func (c Pipeline) Execute(ctx context.Context, cli *client.Client) (int, error) 
 	// inspect the finished container so we can get the exitcode
 	inspectData, err := cli.ContainerInspect(ctx, containerId)
 	if err != nil {
-		return -1, err
+		return -1, errors.New(fmt.Sprintf("Error while inspecting container: %q", err))
 	}
 	log.Infof("Container \"%s\" done, exit code: %d", containerId, inspectData.State.ExitCode)
 
 	log.Debugf("Removing container \"%s\"", containerId)
 	err = cli.ContainerRemove(ctx, containerId, types.ContainerRemoveOptions{RemoveVolumes: true})
 	if err != nil {
-		return -1, err
+		return -1, errors.New(fmt.Sprintf("Error while removing container: %q", err))
 	}
 
 	return inspectData.State.ExitCode, nil
@@ -208,10 +217,8 @@ func containerCreate(ctx context.Context, cli ContainerCreater, commands []strin
 */
 func containerName(repoFullName string, commitId string) string {
 	mapping := func(r rune) rune {
-		match, err := regexp.Match("[a-zA-Z_.-]", []byte{byte(r)})
-		if err != nil {
-			return -1
-		}
+		// Pattern compilation won't fail, so don't check for err
+		match, _ := regexp.Match("[a-zA-Z_.-]", []byte{byte(r)})
 		if match == false {
 			if string(r) == "/" {
 				return []rune("_")[0]
