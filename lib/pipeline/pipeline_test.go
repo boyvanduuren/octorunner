@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
+	"reflect"
 	"testing"
 )
 
@@ -76,19 +77,66 @@ func (client MockDockerClient) ImageList(ctx context.Context, options types.Imag
 }
 
 func TestImageExists(t *testing.T) {
-	client := MockDockerClient{Images: []string{"alpine:latest"}, Err: nil}
-	exists, err := imageExists(context.TODO(), client, "alpine")
-	if err != nil {
-		t.Fatalf("Expected no error, but got: %v", err)
+	cases := []struct {
+		c             MockDockerClient
+		image         string
+		expectedValue bool
+		expectedErr   error
+	}{
+		{
+			c: MockDockerClient{
+				Images: []string{
+					"alpine:latest",
+				},
+				Err: nil,
+			},
+			image:         "alpine",
+			expectedValue: true,
+			expectedErr:   nil,
+		},
+		{
+			c: MockDockerClient{
+				Images: []string{
+					"alpine:latest",
+					"golang:1.7.5",
+				},
+				Err: nil,
+			},
+			image:         "golang:1.7.5",
+			expectedValue: true,
+			expectedErr:   nil,
+		},
+		{
+			c: MockDockerClient{
+				Images: []string{
+					"alpine:latest",
+					"golang:1.7.5",
+				},
+				Err: nil,
+			},
+			image:         "debian",
+			expectedValue: false,
+			expectedErr:   nil,
+		},
+		{
+			c: MockDockerClient{
+				Images: []string{},
+				Err:    errors.New("Client error"),
+			},
+			image:         "doesn't_matter",
+			expectedValue: false,
+			expectedErr:   errors.New("Client error"),
+		},
 	}
-	if exists == false {
-		t.Fatal("Expected to find alpine, but didn't")
-	}
+	for _, testCase := range cases {
+		val, err := imageExists(context.TODO(), testCase.c, testCase.image)
+		if !reflect.DeepEqual(err, testCase.expectedErr) {
+			t.Errorf("Expected err to be %q,but it was %q", testCase.expectedErr, err)
+		}
 
-	client.Err = errors.New("Testing an error")
-	_, err = imageExists(context.TODO(), client, "alpine")
-	if err == nil {
-		t.Fatalf("Expected error: %v", client.Err)
+		if testCase.expectedValue != val {
+			t.Errorf("Expected %q, but got %q", testCase.expectedValue, val)
+		}
 	}
 }
 
