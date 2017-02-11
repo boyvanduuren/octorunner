@@ -5,6 +5,7 @@ import (
 	"testing"
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
+	"errors"
 )
 
 const foo = `
@@ -82,6 +83,12 @@ func TestImageExists(t *testing.T) {
 	}
 	if exists == false {
 		t.Fatalf("Expected to find alpine, but didn't")
+	}
+
+	client.Err = errors.New("Testing an error")
+	_, err = imageExists(context.TODO(), client, "alpine")
+	if err == nil {
+		t.Fatalf("Expected error: %v", client.Err)
 	}
 }
 
