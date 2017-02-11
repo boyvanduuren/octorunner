@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"errors"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -10,6 +11,7 @@ import (
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
+	"io"
 	"io/ioutil"
 	"regexp"
 	"strings"
@@ -20,6 +22,13 @@ import (
 */
 type ImageLister interface {
 	ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error)
+}
+
+/*
+ ImagePuller implementations are used to pull Docker images to a Docker host.
+*/
+type ImagePuller interface {
+	ImagePull(ctx context.Context, imageName string, options types.ImagePullOptions) (io.ReadCloser, error)
 }
 
 /*
@@ -63,21 +72,15 @@ func (c Pipeline) Execute(ctx context.Context, cli *client.Client) (int, error) 
 		return -1, errors.New("Error while reading context")
 	}
 
-	// start image in described in job, execute script
+	// look for image on Docker host, if we don't have it we'll pull it
 	imageFound, err := imageExists(ctx, cli, c.Image)
 
 	if !imageFound {
-		// todo: enable registry authorization
 		log.Infof("Pulling image \"%s\"", c.Image)
-		reader, err := cli.ImagePull(ctx, c.Image, types.ImagePullOptions{})
+		err := imagePull(ctx, cli, c.Image)
 		if err != nil {
 			return -1, err
 		}
-		buf, err := ioutil.ReadAll(reader)
-		if err != nil {
-			return -1, err
-		}
-		log.Debugf("%s", buf)
 	} else {
 		log.Debugf("Image \"%s\" is present", c.Image)
 	}
@@ -151,6 +154,23 @@ func imageExists(ctx context.Context, client ImageLister, imageName string) (boo
 	}
 
 	return imageFound, nil
+}
+
+/*
+ Pull an image to a Docker host so it can be used to create containers.
+*/
+func imagePull(ctx context.Context, cli ImagePuller, imageName string) error {
+	reader, err := cli.ImagePull(ctx, imageName, types.ImagePullOptions{})
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error while pulling %q: %q", imageName, err))
+	}
+	buf, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error while pulling %q: %q", imageName, err))
+	}
+	log.Debugf("%s", buf)
+
+	return nil
 }
 
 /*

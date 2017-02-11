@@ -1,10 +1,13 @@
 package pipeline
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
+	"io"
+	"io/ioutil"
 	"reflect"
 	"testing"
 )
@@ -63,12 +66,12 @@ func TestConfigParsing(t *testing.T) {
 //	}
 //}
 
-type MockDockerClient struct {
+type MockImageLister struct {
 	Images []string
 	Err    error
 }
 
-func (client MockDockerClient) ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error) {
+func (client MockImageLister) ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error) {
 	if client.Err != nil {
 		return nil, client.Err
 	} else {
@@ -78,13 +81,13 @@ func (client MockDockerClient) ImageList(ctx context.Context, options types.Imag
 
 func TestImageExists(t *testing.T) {
 	cases := []struct {
-		c             MockDockerClient
+		c             MockImageLister
 		image         string
 		expectedValue bool
 		expectedErr   error
 	}{
 		{
-			c: MockDockerClient{
+			c: MockImageLister{
 				Images: []string{
 					"alpine:latest",
 				},
@@ -95,7 +98,7 @@ func TestImageExists(t *testing.T) {
 			expectedErr:   nil,
 		},
 		{
-			c: MockDockerClient{
+			c: MockImageLister{
 				Images: []string{
 					"alpine:latest",
 					"golang:1.7.5",
@@ -107,7 +110,7 @@ func TestImageExists(t *testing.T) {
 			expectedErr:   nil,
 		},
 		{
-			c: MockDockerClient{
+			c: MockImageLister{
 				Images: []string{
 					"alpine:latest",
 					"golang:1.7.5",
@@ -119,7 +122,7 @@ func TestImageExists(t *testing.T) {
 			expectedErr:   nil,
 		},
 		{
-			c: MockDockerClient{
+			c: MockImageLister{
 				Images: []string{},
 				Err:    errors.New("Client error"),
 			},
@@ -136,6 +139,69 @@ func TestImageExists(t *testing.T) {
 
 		if testCase.expectedValue != val {
 			t.Errorf("Expected %q, but got %q", testCase.expectedValue, val)
+		}
+	}
+}
+
+type MockImagePuller struct {
+	Err error
+	Out io.ReadCloser
+}
+
+// Used to test the error routine of imagePull.
+type ErrorReadCloser struct{}
+
+func (errorReadCloser ErrorReadCloser) Read(p []byte) (int, error) {
+	return 0, errors.New("This always errors")
+}
+func (errorReadCloser ErrorReadCloser) Close() error {
+	return errors.New("This always errors")
+}
+
+func (client MockImagePuller) ImagePull(ctx context.Context, imageName string, options types.ImagePullOptions) (io.ReadCloser, error) {
+	if client.Err != nil {
+		return nil, client.Err
+	} else {
+		return client.Out, nil
+	}
+}
+
+func TestImagePull(t *testing.T) {
+	cases := []struct {
+		c             ImagePuller
+		imageName     string
+		expectedError error
+	}{
+		{
+			c: MockImagePuller{
+				Err: errors.New("No such image exists"),
+				Out: ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
+			},
+			imageName:     "foobar",
+			expectedError: errors.New(fmt.Sprintf("Error while pulling %q: %q", "foobar", "No such image exists")),
+		},
+		{
+			c: MockImagePuller{
+				Err: nil,
+				Out: ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
+			},
+			imageName:     "golang:latest",
+			expectedError: nil,
+		},
+		{
+			c: MockImagePuller{
+				Err: nil,
+				Out: ErrorReadCloser{},
+			},
+			imageName:     "golang:latest",
+			expectedError: errors.New(fmt.Sprintf("Error while pulling %q: %q", "golang:latest", "This always errors")),
+		},
+	}
+
+	for _, testCase := range cases {
+		err := imagePull(context.TODO(), testCase.c, testCase.imageName)
+		if !reflect.DeepEqual(err, testCase.expectedError) {
+			t.Errorf("Expected err to be %q, but it was %q", testCase.expectedError, err)
 		}
 	}
 }
