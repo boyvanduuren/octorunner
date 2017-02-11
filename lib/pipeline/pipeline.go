@@ -32,6 +32,14 @@ type ImagePuller interface {
 }
 
 /*
+ ContainerCreater implementations are used to create containers on a Docker host.
+*/
+type ContainerCreater interface {
+	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig,
+		networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error)
+}
+
+/*
  A pipeline contains an image name, and an array containing commands that are executed when
  the pipeline is executed.
  When the pipeline is executed, the script array will be concatenated as a single script, of which every
@@ -85,47 +93,31 @@ func (c Pipeline) Execute(ctx context.Context, cli *client.Client) (int, error) 
 		log.Debugf("Image \"%s\" is present", c.Image)
 	}
 
-	// create the container
-	commands := strings.Join(c.Script, " && ")
+	// start the container
 	volumeBind := strings.Join([]string{repoData["fsLocation"], WORKDIR}, ":")
-	log.Debugf("Creating container with entrypoint \"%s\" and bound volume \"%s\"", commands, volumeBind)
-	container, err := cli.ContainerCreate(ctx,
-		&container.Config{
-			Image:      c.Image,
-			Entrypoint: strslice.StrSlice{"/bin/sh", "-c", commands},
-			WorkingDir: WORKDIR},
-		&container.HostConfig{
-			AutoRemove: false,
-			Binds:      []string{volumeBind}},
-		&network.NetworkingConfig{},
-		containerName(repoData["fullName"], repoData["commitId"]))
+	containerName := containerName(repoData["fullName"], repoData["commitId"])
+	containerId, err := containerCreate(ctx, cli, c.Script, volumeBind, c.Image, containerName)
 	if err != nil {
 		return -1, err
 	}
-	// log warnings if we have some
-	if len(container.Warnings) > 0 {
-		log.Warnf("Received warnings while creating container: %v", container.Warnings)
-	}
-	log.Debugf("Container with ID \"%s\" created", container.ID)
 
-	// start the container
-	err = cli.ContainerStart(ctx, container.ID, types.ContainerStartOptions{})
+	err = cli.ContainerStart(ctx, containerId, types.ContainerStartOptions{})
 	if err != nil {
 		return -1, err
 	}
 
 	// wait until the container is done
-	cli.ContainerWait(ctx, container.ID)
+	cli.ContainerWait(ctx, containerId)
 
 	// inspect the finished container so we can get the exitcode
-	inspectData, err := cli.ContainerInspect(ctx, container.ID)
+	inspectData, err := cli.ContainerInspect(ctx, containerId)
 	if err != nil {
 		return -1, err
 	}
-	log.Infof("Container \"%s\" done, exit code: %d", container.ID, inspectData.State.ExitCode)
+	log.Infof("Container \"%s\" done, exit code: %d", containerId, inspectData.State.ExitCode)
 
-	log.Debugf("Removing container \"%s\"", container.ID)
-	err = cli.ContainerRemove(ctx, container.ID, types.ContainerRemoveOptions{RemoveVolumes: true})
+	log.Debugf("Removing container \"%s\"", containerId)
+	err = cli.ContainerRemove(ctx, containerId, types.ContainerRemoveOptions{RemoveVolumes: true})
 	if err != nil {
 		return -1, err
 	}
@@ -171,6 +163,43 @@ func imagePull(ctx context.Context, cli ImagePuller, imageName string) error {
 	log.Debugf("%s", buf)
 
 	return nil
+}
+
+/*
+ Create a container using imageName on a Docker host with the given commands passed to "/bin/sh" as entrypoint, and
+ bindDir mounted to WORKDIR (see Constants).
+ Return the ID assigned to the container by Docker, or an error if something goes wrong.
+*/
+func containerCreate(ctx context.Context, cli ContainerCreater, commands []string, bindDir string, imageName string,
+	containerName string) (string, error) {
+	// create the container
+	script := strings.Join(commands, " && ")
+	log.Debugf("Creating container with entrypoint %q and bound volume %q", script, bindDir)
+	container, err := cli.ContainerCreate(ctx,
+		&container.Config{
+			Image:      imageName,
+			Entrypoint: strslice.StrSlice{"/bin/sh", "-c", script},
+			WorkingDir: WORKDIR},
+		&container.HostConfig{
+			AutoRemove: false,
+			Binds:      []string{bindDir}},
+		&network.NetworkingConfig{},
+		containerName)
+
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("Error while creating container: %q", err))
+	}
+	// log warnings if we have some
+	if len(container.Warnings) > 0 {
+		warnings := make([]string, len(container.Warnings))
+		for i, s := range container.Warnings {
+			warnings[i] = fmt.Sprintf("%q", s)
+		}
+		log.Warnf("Received warnings while creating container: %v", warnings)
+	}
+	log.Debugf("Container with ID %q created", container.ID)
+
+	return container.ID, nil
 }
 
 /*

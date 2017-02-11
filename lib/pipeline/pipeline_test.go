@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"golang.org/x/net/context"
 	"io"
 	"io/ioutil"
@@ -202,6 +204,64 @@ func TestImagePull(t *testing.T) {
 		err := imagePull(context.TODO(), testCase.c, testCase.imageName)
 		if !reflect.DeepEqual(err, testCase.expectedError) {
 			t.Errorf("Expected err to be %q, but it was %q", testCase.expectedError, err)
+		}
+	}
+}
+
+type MockContainerCreater struct {
+	Warnings []string
+	ID       string
+	Err      error
+}
+
+func (client MockContainerCreater) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig,
+	networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error) {
+	if client.Err != nil {
+		return container.ContainerCreateCreatedBody{}, client.Err
+	}
+
+	container := container.ContainerCreateCreatedBody{
+		Warnings: client.Warnings,
+		ID:       client.ID,
+	}
+
+	return container, nil
+}
+
+func TestContainerCreate(t *testing.T) {
+	cases := []struct {
+		c             ContainerCreater
+		expectedValue string
+		expectedError error
+	}{
+		{
+			c: MockContainerCreater{
+				ID: "createdId",
+				Warnings: []string{
+					"Some warning",
+					"Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn",
+				},
+			},
+			expectedValue: "createdId",
+		},
+		{
+			c: MockContainerCreater{
+				ID:  "createdId",
+				Err: errors.New("Container creation error"),
+			},
+			expectedValue: "",
+			expectedError: errors.New(fmt.Sprintf("Error while creating container: %q", "Container creation error")),
+		},
+	}
+
+	for _, testCase := range cases {
+		val, err := containerCreate(context.TODO(), testCase.c, []string{"true"}, "/tmp/foo", "golang:latest",
+			"boyvanduuren_octorunner-1234")
+		if !reflect.DeepEqual(err, testCase.expectedError) {
+			t.Errorf("Expected err to be %q, but it was %q", testCase.expectedError, err)
+		}
+		if testCase.expectedValue != val {
+			t.Errorf("Expected %q, but got %q", testCase.expectedValue, val)
 		}
 	}
 }
