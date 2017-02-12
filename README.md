@@ -1,4 +1,4 @@
-# octorunner
+# octorunner [![Go Report Card](https://goreportcard.com/badge/github.com/boyvanduuren/octorunner)](https://goreportcard.com/report/github.com/boyvanduuren/octorunner)
 
 Octorunner is a tool that serves as the endpoint for Github webhooks. It was inspired by [Gitlab's gitlab-runner](https://docs.gitlab.com/runner/).
 Right now it can spin up a docker container using a user specified docker image, run some user specified test commands, and set a commit's status. This is all triggered by push events. It works for both public and private repositories.
