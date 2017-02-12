@@ -1,3 +1,5 @@
+<a href="#octopus"><img src="https://upload.wikimedia.org/wikipedia/commons/4/4e/PSM_V14_D362_An_octopus_running.jpg" width="250" /></a>
+
 # octorunner [![Go Report Card](https://goreportcard.com/badge/github.com/boyvanduuren/octorunner)](https://goreportcard.com/report/github.com/boyvanduuren/octorunner)
 
 Octorunner is a tool that serves as the endpoint for Github webhooks. It was inspired by [Gitlab's gitlab-runner](https://docs.gitlab.com/runner/).
@@ -71,3 +73,7 @@ they should all return 0 in order for the test to succeed.
 * Store test output
 * Write more and proper tests
 * Add an option to setup webhooks automatically
+
+<hr />
+<a name="octopus" />
+Octopus image by Unknown, via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File%3APSM_V14_D362_An_octopus_running.jpg)
