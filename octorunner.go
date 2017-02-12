@@ -10,17 +10,17 @@ import (
 )
 
 const (
-	ENVPREFIX          = "octorunner"
-	CONFIGFILE         = "config"
-	CONFIGPATH         = "."
-	LOGLEVEL           = "loglevel"
-	LOGLEVEL_DEFAULT   = "info"
-	WEB_SERVER         = "web.server"
-	WEB_SERVER_DEFAULT = "127.0.0.1"
-	WEB_PORT           = "web.port"
-	WEB_PORT_DEFAULT   = "8080"
-	WEB_PATH           = "web.path"
-	WEB_PATH_DEFAULT   = "payload"
+	envPrefix        = "octorunner"
+	configFile       = "config"
+	configPath       = "."
+	logLevel         = "loglevel"
+	logLevelDefault  = "info"
+	webServer        = "web.server"
+	webServerDefault = "127.0.0.1"
+	webPort          = "web.port"
+	webPortDefault   = "8080"
+	webPath          = "web.path"
+	webPathDefault   = "payload"
 )
 
 // Main entry point for our program. Used to read and set the configuration we'll be using, and setup a webserver.
@@ -37,34 +37,34 @@ func main() {
 	// Configure viper to read config from the environment
 	// We'll use a EnvKeyReplacer so OCTORUNNER_GIT_APIKEY
 	// overrides git.apikey defined in a config file
-	viper.SetEnvPrefix(ENVPREFIX)
+	viper.SetEnvPrefix(envPrefix)
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
 	// A config file might exist in the same dir as the octorunner binary, but is not required
-	viper.SetConfigName(CONFIGFILE)
-	viper.AddConfigPath(CONFIGPATH)
+	viper.SetConfigName(configFile)
+	viper.AddConfigPath(configPath)
 	viper.ReadInConfig()
 
 	// Set some defaults
-	viper.SetDefault(LOGLEVEL, LOGLEVEL_DEFAULT)
-	viper.SetDefault(WEB_SERVER, WEB_SERVER_DEFAULT)
-	viper.SetDefault(WEB_PORT, WEB_PORT_DEFAULT)
-	viper.SetDefault(WEB_PATH, WEB_PATH_DEFAULT)
+	viper.SetDefault(logLevel, logLevelDefault)
+	viper.SetDefault(webServer, webServerDefault)
+	viper.SetDefault(webPort, webPortDefault)
+	viper.SetDefault(webPath, webPathDefault)
 
 	// Set log level
-	logLevel := strings.ToLower(viper.GetString(LOGLEVEL))
+	logLevel := strings.ToLower(viper.GetString(logLevel))
 	if val, exists := LOGMAP[logLevel]; exists {
 		log.Info("Setting log level to " + logLevel)
 		log.SetLevel(val)
 	} else {
-		log.Error("Loglevel was set to invalid value " + logLevel + ", defaulting to " + LOGLEVEL_DEFAULT)
+		log.Error("Loglevel was set to invalid value " + logLevel + ", defaulting to " + logLevelDefault)
 	}
 
 	// Get the webserver configuration
-	webServer := viper.GetString(WEB_SERVER)
-	webPort := viper.GetString(WEB_PORT)
-	webPath := viper.GetString(WEB_PATH)
+	webServer := viper.GetString(webServer)
+	webPort := viper.GetString(webPort)
+	webPath := viper.GetString(webPath)
 
 	// Get authentication data for git
 	var repositories map[string]auth.Repository
@@ -72,7 +72,7 @@ func main() {
 	if err != nil {
 		log.Info("No auth data for repositories found")
 	} else {
-		var repos []string = make([]string, len(repositories))
+		repos := make([]string, len(repositories))
 		for k := range repositories {
 			repos = append(repos, k)
 		}

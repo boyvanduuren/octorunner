@@ -17,21 +17,21 @@ import (
 )
 
 /*
- ImageLister implementations can be used to list available images on a Docker host.
+ImageLister implementations can be used to list available images on a Docker host.
 */
 type ImageLister interface {
 	ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error)
 }
 
 /*
- ImagePuller implementations are used to pull Docker images to a Docker host.
+ImagePuller implementations are used to pull Docker images to a Docker host.
 */
 type ImagePuller interface {
 	ImagePull(ctx context.Context, imageName string, options types.ImagePullOptions) (io.ReadCloser, error)
 }
 
 /*
- ContainerCreater implementations are used to create containers on a Docker host.
+ContainerCreater implementations are used to create containers on a Docker host.
 */
 type ContainerCreater interface {
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig,
@@ -39,9 +39,9 @@ type ContainerCreater interface {
 }
 
 /*
- Any client that's used to execute a pipeline needs to implement this interface.
+ExecutionClient implementations are used to execute pipelines.
 */
-type PipelineExecutionClient interface {
+type ExecutionClient interface {
 	ImageLister
 	ImagePuller
 	ContainerCreater
@@ -52,19 +52,21 @@ type PipelineExecutionClient interface {
 }
 
 /*
- A pipeline contains an image name, and an array containing commands that are executed when
- the pipeline is executed.
- When the pipeline is executed, the script array will be concatenated as a single script, of which every
- command needs to return 0 for the script to pass as successful.
+Pipeline contains an image name, and an array containing commands that are executed when
+the pipeline is executed.
+When the pipeline is executed, the script array will be concatenated as a single script, of which every
+command needs to return 0 for the script to pass as successful.
 */
 type Pipeline struct {
 	Script []string `yaml:"script"`
 	Image  string   `yaml:"image"`
 }
 
+const repositoryData string = "repositoryData"
+
 /*
- ParseConfig deserializes .octorunner.y[a]ml files contained in code repositories.
- See https://github.com/boyvanduuren/octorunner#adding-a-test-to-your-repository.
+ParseConfig deserializes .octorunner.y[a]ml files contained in code repositories.
+See https://github.com/boyvanduuren/octorunner#adding-a-test-to-your-repository.
 */
 func ParseConfig(file []byte) (Pipeline, error) {
 	var pipelineConfig Pipeline
@@ -76,18 +78,16 @@ func ParseConfig(file []byte) (Pipeline, error) {
 	return pipelineConfig, nil
 }
 
-const (
-	// Extracted repositories are mounted as volumes on containers to WORKDIR.
-	WORKDIR = "/var/run/octorunner"
-)
+// Extracted repositories are mounted as volumes on containers to WORKDIR.
+const workDir = "/var/run/octorunner"
 
 /*
- Execute a pipeline, and return the exit code of its script.
+Execute a pipeline, and return the exit code of its script.
 */
-func (c Pipeline) Execute(ctx context.Context, cli PipelineExecutionClient) (int, error) {
+func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error) {
 	log.Info("Starting execution of pipeline")
 
-	repoData, ok := ctx.Value("repoData").(map[string]string)
+	repoData, ok := ctx.Value(repositoryData).(map[string]string)
 	if !ok {
 		return -1, errors.New("Error while reading context")
 	}
@@ -106,32 +106,32 @@ func (c Pipeline) Execute(ctx context.Context, cli PipelineExecutionClient) (int
 	}
 
 	// start the container
-	volumeBind := strings.Join([]string{repoData["fsLocation"], WORKDIR}, ":")
+	volumeBind := strings.Join([]string{repoData["fsLocation"], workDir}, ":")
 	containerName := containerName(repoData["fullName"], repoData["commitId"])
-	containerId, err := containerCreate(ctx, cli, c.Script, volumeBind, c.Image, containerName)
+	containerID, err := containerCreate(ctx, cli, c.Script, volumeBind, c.Image, containerName)
 	if err != nil {
 		return -1, err
 	}
 
-	err = cli.ContainerStart(ctx, containerId, types.ContainerStartOptions{})
+	err = cli.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
 	if err != nil {
-		return -1, errors.New(fmt.Sprintf("Error while starting container: %q", err))
+		return -1, fmt.Errorf("Error while starting container: %q", err)
 	}
 
 	// wait until the container is done
-	cli.ContainerWait(ctx, containerId)
+	cli.ContainerWait(ctx, containerID)
 
 	// inspect the finished container so we can get the exitcode
-	inspectData, err := cli.ContainerInspect(ctx, containerId)
+	inspectData, err := cli.ContainerInspect(ctx, containerID)
 	if err != nil {
-		return -1, errors.New(fmt.Sprintf("Error while inspecting container: %q", err))
+		return -1, fmt.Errorf("Error while inspecting container: %q", err)
 	}
-	log.Infof("Container \"%s\" done, exit code: %d", containerId, inspectData.State.ExitCode)
+	log.Infof("Container \"%s\" done, exit code: %d", containerID, inspectData.State.ExitCode)
 
-	log.Debugf("Removing container \"%s\"", containerId)
-	err = cli.ContainerRemove(ctx, containerId, types.ContainerRemoveOptions{RemoveVolumes: true})
+	log.Debugf("Removing container \"%s\"", containerID)
+	err = cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{RemoveVolumes: true})
 	if err != nil {
-		return -1, errors.New(fmt.Sprintf("Error while removing container: %q", err))
+		return -1, fmt.Errorf("Error while removing container: %q", err)
 	}
 
 	return inspectData.State.ExitCode, nil
@@ -161,16 +161,16 @@ func imageExists(ctx context.Context, client ImageLister, imageName string) (boo
 }
 
 /*
- Pull an image to a Docker host so it can be used to create containers.
+Pull an image to a Docker host so it can be used to create containers.
 */
 func imagePull(ctx context.Context, cli ImagePuller, imageName string) error {
 	reader, err := cli.ImagePull(ctx, imageName, types.ImagePullOptions{})
 	if err != nil {
-		return errors.New(fmt.Sprintf("Error while pulling %q: %q", imageName, err))
+		return fmt.Errorf("Error while pulling %q: %q", imageName, err)
 	}
 	buf, err := ioutil.ReadAll(reader)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Error while pulling %q: %q", imageName, err))
+		return fmt.Errorf("Error while pulling %q: %q", imageName, err)
 	}
 	log.Debugf("%s", buf)
 
@@ -178,9 +178,9 @@ func imagePull(ctx context.Context, cli ImagePuller, imageName string) error {
 }
 
 /*
- Create a container using imageName on a Docker host with the given commands passed to "/bin/sh" as entrypoint, and
- bindDir mounted to WORKDIR (see Constants).
- Return the ID assigned to the container by Docker, or an error if something goes wrong.
+Create a container using imageName on a Docker host with the given commands passed to "/bin/sh" as entrypoint, and
+bindDir mounted to WORKDIR (see Constants).
+Return the ID assigned to the container by Docker, or an error if something goes wrong.
 */
 func containerCreate(ctx context.Context, cli ContainerCreater, commands []string, bindDir string, imageName string,
 	containerName string) (string, error) {
@@ -191,7 +191,7 @@ func containerCreate(ctx context.Context, cli ContainerCreater, commands []strin
 		&container.Config{
 			Image:      imageName,
 			Entrypoint: strslice.StrSlice{"/bin/sh", "-c", script},
-			WorkingDir: WORKDIR},
+			WorkingDir: workDir},
 		&container.HostConfig{
 			AutoRemove: false,
 			Binds:      []string{bindDir}},
@@ -199,7 +199,7 @@ func containerCreate(ctx context.Context, cli ContainerCreater, commands []strin
 		containerName)
 
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Error while creating container: %q", err))
+		return "", fmt.Errorf("Error while creating container: %q", err)
 	}
 	// log warnings if we have some
 	if len(container.Warnings) > 0 {
@@ -215,23 +215,21 @@ func containerCreate(ctx context.Context, cli ContainerCreater, commands []strin
 }
 
 /*
- Container names need to match [a-zA-Z_.-], so filter out everything that doesn't match.
- Except "-", which is translated to "_".
+Container names need to match [a-zA-Z_.-], so filter out everything that doesn't match.
+Except "-", which is translated to "_".
 */
-func containerName(repoFullName string, commitId string) string {
+func containerName(repoFullName string, commitID string) string {
 	mapping := func(r rune) rune {
 		// Pattern compilation won't fail, so don't check for err
 		match, _ := regexp.Match("[a-zA-Z_.-]", []byte{byte(r)})
 		if match == false {
 			if string(r) == "/" {
 				return []rune("_")[0]
-			} else {
-				return -1
 			}
-		} else {
-			return r
+			return -1
 		}
+		return r
 	}
 
-	return strings.Join([]string{strings.Map(mapping, repoFullName), commitId}, "-")
+	return strings.Join([]string{strings.Map(mapping, repoFullName), commitID}, "-")
 }

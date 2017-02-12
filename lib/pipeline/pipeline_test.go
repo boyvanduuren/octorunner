@@ -58,7 +58,7 @@ script:
 //func TestPipelineExecute(t *testing.T) {
 //	ctx := context.TODO()
 //
-//	ctx = context.WithValue(ctx, "repoData", map[string]string{
+//	ctx = context.WithValue(ctx, git.RepositoryData, map[string]string{
 //		"fullName":   "boyvanduuren/octorunner",
 //		"commitId":   "deadbeef",
 //		"fsLocation": "/tmp/extracted",
@@ -82,9 +82,8 @@ type MockImageLister struct {
 func (client MockImageLister) ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error) {
 	if client.Err != nil {
 		return nil, client.Err
-	} else {
-		return []types.ImageSummary{{RepoTags: client.Images}}, nil
 	}
+	return []types.ImageSummary{{RepoTags: client.Images}}, nil
 }
 
 func TestImageExists(t *testing.T) {
@@ -146,7 +145,7 @@ func TestImageExists(t *testing.T) {
 		}
 
 		if testCase.expectedValue != val {
-			t.Errorf("Expected %q, but got %q", testCase.expectedValue, val)
+			t.Errorf("Expected %t, but got %t", testCase.expectedValue, val)
 		}
 	}
 }
@@ -169,9 +168,8 @@ func (errorReadCloser ErrorReadCloser) Close() error {
 func (client MockImagePuller) ImagePull(ctx context.Context, imageName string, options types.ImagePullOptions) (io.ReadCloser, error) {
 	if client.Err != nil {
 		return nil, client.Err
-	} else {
-		return client.Out, nil
 	}
+	return client.Out, nil
 }
 
 func TestImagePull(t *testing.T) {
@@ -186,7 +184,7 @@ func TestImagePull(t *testing.T) {
 				Out: ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
 			},
 			imageName:     "foobar",
-			expectedError: errors.New(fmt.Sprintf("Error while pulling %q: %q", "foobar", "No such image exists")),
+			expectedError: fmt.Errorf("Error while pulling %q: %q", "foobar", "No such image exists"),
 		},
 		{
 			c: MockImagePuller{
@@ -202,7 +200,7 @@ func TestImagePull(t *testing.T) {
 				Out: ErrorReadCloser{},
 			},
 			imageName:     "golang:latest",
-			expectedError: errors.New(fmt.Sprintf("Error while pulling %q: %q", "golang:latest", "This always errors")),
+			expectedError: fmt.Errorf("Error while pulling %q: %q", "golang:latest", "This always errors"),
 		},
 	}
 
@@ -256,7 +254,7 @@ func TestContainerCreate(t *testing.T) {
 				Err: errors.New("Container creation error"),
 			},
 			expectedValue: "",
-			expectedError: errors.New(fmt.Sprintf("Error while creating container: %q", "Container creation error")),
+			expectedError: fmt.Errorf("Error while creating container: %q", "Container creation error"),
 		},
 	}
 
@@ -289,17 +287,15 @@ type MockPipelineExecutionClient struct {
 func (client MockPipelineExecutionClient) ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error) {
 	if client.ListErr != nil {
 		return nil, client.ListErr
-	} else {
-		return []types.ImageSummary{{RepoTags: client.ListImages}}, nil
 	}
+	return []types.ImageSummary{{RepoTags: client.ListImages}}, nil
 }
 
 func (client MockPipelineExecutionClient) ImagePull(ctx context.Context, imageName string, options types.ImagePullOptions) (io.ReadCloser, error) {
 	if client.PullErr != nil {
 		return nil, client.PullErr
-	} else {
-		return client.PullOut, nil
 	}
+	return client.PullOut, nil
 }
 
 func (client MockPipelineExecutionClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig,
@@ -331,9 +327,8 @@ func (client MockPipelineExecutionClient) ContainerInspect(ctx context.Context, 
 					ExitCode: client.ExitCode,
 				},
 			}}, nil
-	} else {
-		return types.ContainerJSON{}, client.InspectErr
 	}
+	return types.ContainerJSON{}, client.InspectErr
 }
 
 func (client MockPipelineExecutionClient) ContainerRemove(ctx context.Context, containerID string, options types.ContainerRemoveOptions) error {
@@ -388,7 +383,7 @@ func TestPipelineExecute(t *testing.T) {
 				CreateErr: nil,
 				CreateID:  "foo",
 			},
-			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
 				"fsLocation": "/tmp/",
 				"commitId":   "deadbeef",
@@ -414,7 +409,7 @@ func TestPipelineExecute(t *testing.T) {
 				CreateErr: nil,
 				CreateID:  "foo",
 			},
-			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
 				"fsLocation": "/tmp/",
 				"commitId":   "deadbeef",
@@ -435,18 +430,18 @@ func TestPipelineExecute(t *testing.T) {
 				ListImages: []string{
 					"golang:latest",
 				},
-				PullErr:   errors.New("It failed!"),
+				PullErr:   errors.New("It failed"),
 				PullOut:   ioutil.NopCloser(bytes.NewBufferString("doesn't matter")),
 				CreateErr: nil,
 				CreateID:  "foo",
 			},
-			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
 				"fsLocation": "/tmp/",
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: -1,
-			expectedError: errors.New(fmt.Sprintf("Error while pulling %q: %q", "archlinux:latest", "It failed!")),
+			expectedError: fmt.Errorf("Error while pulling %q: %q", "archlinux:latest", "It failed"),
 		},
 		// Error while creating container
 		{
@@ -466,13 +461,13 @@ func TestPipelineExecute(t *testing.T) {
 				CreateErr: errors.New("Creation error"),
 				CreateID:  "foo",
 			},
-			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
 				"fsLocation": "/tmp/",
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: -1,
-			expectedError: errors.New(fmt.Sprintf("Error while creating container: %q", "Creation error")),
+			expectedError: fmt.Errorf("Error while creating container: %q", "Creation error"),
 		},
 		// Error while starting container
 		{
@@ -491,13 +486,13 @@ func TestPipelineExecute(t *testing.T) {
 				CreateID: "foo",
 				StartErr: errors.New("Start error"),
 			},
-			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
 				"fsLocation": "/tmp/",
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: -1,
-			expectedError: errors.New(fmt.Sprintf("Error while starting container: %q", "Start error")),
+			expectedError: fmt.Errorf("Error while starting container: %q", "Start error"),
 		},
 		// Error while inspecting container
 		{
@@ -516,13 +511,13 @@ func TestPipelineExecute(t *testing.T) {
 				CreateID:   "foo",
 				InspectErr: errors.New("Inspection error"),
 			},
-			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
 				"fsLocation": "/tmp/",
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: -1,
-			expectedError: errors.New(fmt.Sprintf("Error while inspecting container: %q", "Inspection error")),
+			expectedError: fmt.Errorf("Error while inspecting container: %q", "Inspection error"),
 		},
 		// Error while removing container
 		{
@@ -541,13 +536,13 @@ func TestPipelineExecute(t *testing.T) {
 				CreateID:  "foo",
 				RemoveErr: errors.New("Remove error"),
 			},
-			ctx: context.WithValue(context.TODO(), "repoData", map[string]string{
+			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
 				"fsLocation": "/tmp/",
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: -1,
-			expectedError: errors.New(fmt.Sprintf("Error while removing container: %q", "Remove error")),
+			expectedError: fmt.Errorf("Error while removing container: %q", "Remove error"),
 		},
 	}
 
@@ -565,23 +560,23 @@ func TestPipelineExecute(t *testing.T) {
 func TestContainerName(t *testing.T) {
 	cases := []struct {
 		repoFullName  string
-		commitId      string
+		commitID      string
 		expectedValue string
 	}{
 		{
 			repoFullName:  "boyvanduuren/octorunner",
-			commitId:      "deadbeef",
+			commitID:      "deadbeef",
 			expectedValue: "boyvanduuren_octorunner-deadbeef",
 		},
 		{
 			repoFullName:  "t#st!ng_some.STUFF-()",
-			commitId:      "cafebabe",
+			commitID:      "cafebabe",
 			expectedValue: "tstng_some.STUFF--cafebabe",
 		},
 	}
 
 	for _, testCase := range cases {
-		val := containerName(testCase.repoFullName, testCase.commitId)
+		val := containerName(testCase.repoFullName, testCase.commitID)
 		if testCase.expectedValue != val {
 			t.Errorf("Expected %s, but got %s", testCase.expectedValue, val)
 		}

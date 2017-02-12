@@ -24,21 +24,23 @@ import (
 )
 
 const (
-	EVENTHEADER     = "X-GitHub-Event"
-	FORWARDEDHEADER = "X-Forwarded-For"
-	SIGNATUREHEADER = "X-Hub-Signature"
-	TMPDIR_PREFIX   = "octorunner-"
-	TMPFILE_PREFIX  = "archive-"
-	PIPELINEFILE    = ".octorunner"
+	eventHeader     = "X-GitHub-Event"
+	forwardedHeader = "X-Forwarded-For"
+	signatureHeader = "X-Hub-Signature"
+	tmpDirPrefix    = "octorunner-"
+	tmpFilePrefix   = "archive-"
+	pipelineFile    = ".octorunner"
 )
 
-var Auth authentication.AuthMethod
+var Auth authentication.Method
+
+const repositoryData string = "repositoryData"
 
 type hookPayload struct {
 	Ref, Before, After, Compare string
 	Created, Deleted, Forced    bool
 	Repository                  struct {
-		Id       int
+		ID       int
 		Name     string
 		FullName string `json:"full_name"`
 		Owner    struct {
@@ -51,7 +53,7 @@ type hookPayload struct {
 	} `json:"pusher"`
 	Sender struct {
 		Login string
-		Id    int
+		ID    int
 	} `json:"sender"`
 }
 
@@ -69,7 +71,7 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	log.Info("Received request on listener")
 	// Request might be proxied, so check if there's an X-Forwarded-For header
-	forwardedFor := r.Header.Get(FORWARDEDHEADER)
+	forwardedFor := r.Header.Get(forwardedHeader)
 	var remoteAddr string
 	if forwardedFor != "" {
 		remoteAddr = forwardedFor
@@ -80,15 +82,15 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	// Check which event we received and assign the appropriate handler to eventHandler
 	var eventHandler func(hookPayload)
-	event := r.Header.Get(EVENTHEADER)
+	event := r.Header.Get(eventHeader)
 	if event == "" {
-		log.Error("Header \"" + EVENTHEADER + "\" not set, returning")
+		log.Error("Header \"" + eventHeader + "\" not set, returning")
 		return
 	} else if val, exists := supportedEvents[event]; exists {
 		eventHandler = val
 		log.Debug("Found appropriate handler for \"" + event + "\" event")
 	} else {
-		log.Error("Received \"" + EVENTHEADER + "\", but found no supporting handler for \"" +
+		log.Error("Received \"" + eventHeader + "\", but found no supporting handler for \"" +
 			event + "\" event, returning")
 		return
 	}
@@ -119,7 +121,7 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	if len(repoSecret) == 0 {
 		log.Error("No secret was configured, cannot verify their signature")
 	} else {
-		signature := r.Header.Get(SIGNATUREHEADER)
+		signature := r.Header.Get(signatureHeader)
 		if signature == "" {
 			log.Error("Expected signature for payload, but none given")
 			return
@@ -162,29 +164,29 @@ func handlePush(payload hookPayload) {
 
 	repoName := payload.Repository.Name
 	repoOwner := payload.Repository.Owner.Name
-	commitId := payload.After
+	commitID := payload.After
 
 	/*
 	 When a commit is merged from a branch to another branch, the "after" ID is set to
 	 "0000000000000000000000000000000000000000", and the "previous" ID is the ID of the commit being merged.
 	 That commit will probably already have a state assigned, so we can just return
 	*/
-	if commitId == "0000000000000000000000000000000000000000" {
+	if commitID == "0000000000000000000000000000000000000000" {
 		return
 	}
 
 	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(repoToken))
 	gitClient := github.NewClient(httpClient)
 
-	repoDir, err := getRepository(httpClient, gitClient, repoName, repoOwner, commitId, repoToken)
+	repoDir, err := getRepository(httpClient, gitClient, repoName, repoOwner, commitID, repoToken)
 	if err != nil {
 		log.Errorf("Error while downloading copy of repository: %v", err)
 		return
 	}
 
-	ctx = context.WithValue(ctx, "repoData", map[string]string{
+	ctx = context.WithValue(ctx, repositoryData, map[string]string{
 		"fullName":   repoFullName,
-		"commitId":   commitId,
+		"commitId":   commitID,
 		"fsLocation": repoDir,
 	})
 
@@ -196,13 +198,13 @@ func handlePush(payload hookPayload) {
 
 	// set state of commit to pending
 	log.Debug("Setting state to pending")
-	gitSetState(gitClient, "pending", repoOwner, repoName, commitId)
+	gitSetState(gitClient, "pending", repoOwner, repoName, commitID)
 
 	// create Docker client
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		log.Errorf("Error while creating connection to Docker: %q", err)
-		gitSetState(gitClient, "error", repoOwner, repoName, commitId)
+		gitSetState(gitClient, "error", repoOwner, repoName, commitID)
 		return
 	}
 	defer cli.Close()
@@ -210,59 +212,59 @@ func handlePush(payload hookPayload) {
 	exitcode, err := repoPipeline.Execute(ctx, cli)
 	if err != nil {
 		log.Errorf("Error while executing pipeline: %v", err)
-		gitSetState(gitClient, "error", repoOwner, repoName, commitId)
+		gitSetState(gitClient, "error", repoOwner, repoName, commitID)
 		return
 	}
 
 	log.Debugf("Pipeline returned %d, setting state accordingly", exitcode)
 	if exitcode == 0 {
-		gitSetState(gitClient, "success", repoOwner, repoName, commitId)
+		gitSetState(gitClient, "success", repoOwner, repoName, commitID)
 	} else {
-		gitSetState(gitClient, "failure", repoOwner, repoName, commitId)
+		gitSetState(gitClient, "failure", repoOwner, repoName, commitID)
 	}
 }
 
 func getRepository(httpClient *http.Client, gitClient *github.Client, repoName string, repoOwner string,
-	commitId string, repoToken *oauth2.Token) (string, error) {
-	const GITHUB_ARCHIVE_URL = "https://github.com/%s/%s/archive/%s.zip"
-	const GITHUB_ARCHIVE_ROOTDIR = "%s-%s-%s"
-	const GITHUB_ARCHIVE_FORMAT = "zipball"
-	var archiveUrl *url.URL
+	commitID string, repoToken *oauth2.Token) (string, error) {
+	const githubArchiveURL = "https://github.com/%s/%s/archive/%s.zip"
+	const githubArchiveRootDir = "%s-%s-%s"
+	const githubArchiveFormat = "zipball"
+	var archiveURL *url.URL
 	var err error
 
 	log.Info("Downloading archive of latest commit in push")
 	if repoToken == nil {
 		// no repoToken, so this is a public repository
-		archiveUrl, err = url.Parse(fmt.Sprintf(GITHUB_ARCHIVE_URL, repoOwner, repoName, commitId))
+		archiveURL, err = url.Parse(fmt.Sprintf(githubArchiveURL, repoOwner, repoName, commitID))
 		if err != nil {
-			return "", errors.New(fmt.Sprintf("Error while constructing archive URL: %v", err))
+			return "", fmt.Errorf("Error while constructing archive URL: %v", err)
 		}
 	} else {
-		log.Debug("Getting archive URL for \"" + repoOwner + "/" + repoName + "\", ref \"" + commitId + "\"")
-		archiveUrl, _, err = gitClient.Repositories.GetArchiveLink(repoOwner, repoName, GITHUB_ARCHIVE_FORMAT,
-			&github.RepositoryContentGetOptions{Ref: commitId})
+		log.Debug("Getting archive URL for \"" + repoOwner + "/" + repoName + "\", ref \"" + commitID + "\"")
+		archiveURL, _, err = gitClient.Repositories.GetArchiveLink(repoOwner, repoName, githubArchiveFormat,
+			&github.RepositoryContentGetOptions{Ref: commitID})
 		if err != nil {
-			return "", errors.New(fmt.Sprintf("Error while getting archive URL: %v", err))
+			return "", fmt.Errorf("Error while getting archive URL: %v", err)
 		}
 	}
-	log.Debug("Found archive URL ", archiveUrl)
+	log.Debug("Found archive URL ", archiveURL)
 
-	tmpDir, err := ioutil.TempDir("", TMPDIR_PREFIX)
+	tmpDir, err := ioutil.TempDir("", tmpDirPrefix)
 	if err != nil {
 		log.Error()
-		return "", errors.New(fmt.Sprintf("Error while creating temporary directory: %v", err))
+		return "", fmt.Errorf("Error while creating temporary directory: %v", err)
 	}
 
 	log.Debug("Created temporary directory " + tmpDir)
-	archivePath, err := downloadFile(httpClient, archiveUrl, tmpDir)
+	archivePath, err := downloadFile(httpClient, archiveURL, tmpDir)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Error while downloading archive: %v", err))
+		return "", fmt.Errorf("Error while downloading archive: %v", err)
 	}
 	log.Debug("Archive downloaded to ", archivePath.Name())
 
 	err = unzip(archivePath.Name(), tmpDir)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Error while unpacking archive: %v", err))
+		return "", fmt.Errorf("Error while unpacking archive: %v", err)
 	}
 
 	// cleanup the archive
@@ -270,12 +272,12 @@ func getRepository(httpClient *http.Client, gitClient *github.Client, repoName s
 	os.Remove(archivePath.Name())
 
 	// we should now have a copy of the repository at the latest commit
-	repoDir := path.Join(tmpDir, fmt.Sprintf(GITHUB_ARCHIVE_ROOTDIR, repoOwner, repoName, commitId))
+	repoDir := path.Join(tmpDir, fmt.Sprintf(githubArchiveRootDir, repoOwner, repoName, commitID))
 	if checkDirNotExists(repoDir) {
-		repoDir = path.Join(tmpDir, fmt.Sprintf(GITHUB_ARCHIVE_ROOTDIR, repoOwner, repoName, commitId[0:7]))
+		repoDir = path.Join(tmpDir, fmt.Sprintf(githubArchiveRootDir, repoOwner, repoName, commitID[0:7]))
 		if checkDirNotExists(repoDir) {
 			log.Error()
-			return "", errors.New(fmt.Sprintf("Repository not found at expected directory \"%s\" after unpacking", repoDir))
+			return "", fmt.Errorf("Repository not found at expected directory \"%s\" after unpacking", repoDir)
 		}
 	}
 	log.Debug("Repository unpacked to ", repoDir)
@@ -285,7 +287,7 @@ func getRepository(httpClient *http.Client, gitClient *github.Client, repoName s
 
 func downloadFile(httpClient *http.Client, url *url.URL, downloadDirectory string) (*os.File, error) {
 	log.Debug("Downloading \"" + url.String() + "\"")
-	filePath, err := ioutil.TempFile(downloadDirectory, TMPFILE_PREFIX)
+	filePath, err := ioutil.TempFile(downloadDirectory, tmpFilePrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -295,24 +297,23 @@ func downloadFile(httpClient *http.Client, url *url.URL, downloadDirectory strin
 	n, err := io.Copy(filePath, resp.Body)
 	if err != nil {
 		return nil, err
-	} else {
-		log.Debugf("Downloaded %d bytes", n)
-		return filePath, nil
 	}
+	log.Debugf("Downloaded %d bytes", n)
+	return filePath, nil
 }
 
 func readPipelineConfig(directory string) (pipeline.Pipeline, error) {
 	var pipelineConfig pipeline.Pipeline
-	pipelineConfigPath := path.Join(directory, strings.Join([]string{PIPELINEFILE, ".yaml"}, ""))
+	pipelineConfigPath := path.Join(directory, strings.Join([]string{pipelineFile, ".yaml"}, ""))
 	if _, err := os.Stat(pipelineConfigPath); os.IsNotExist(err) == true {
-		pipelineConfigPath = path.Join(directory, strings.Join([]string{PIPELINEFILE, ".yml"}, ""))
+		pipelineConfigPath = path.Join(directory, strings.Join([]string{pipelineFile, ".yml"}, ""))
 		if _, err := os.Stat(pipelineConfigPath); os.IsNotExist(err) == true {
 			return pipelineConfig, errors.New("Couldn't find .octorunner.yaml or .octorunner.yml in repository")
 		}
 	}
 	pipelineConfigBuf, err := ioutil.ReadFile(pipelineConfigPath)
 	if err != nil {
-		return pipelineConfig, errors.New(fmt.Sprintf("Error while reading from %s: %v", pipelineConfigPath, err))
+		return pipelineConfig, fmt.Errorf("Error while reading from %s: %v", pipelineConfigPath, err)
 	}
 
 	pipelineConfig, err = pipeline.ParseConfig(pipelineConfigBuf)
