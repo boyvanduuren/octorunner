@@ -259,7 +259,7 @@ func TestContainerCreate(t *testing.T) {
 	}
 
 	for _, testCase := range cases {
-		val, err := containerCreate(context.TODO(), testCase.c, []string{"true"}, "/tmp/foo", "golang:latest",
+		val, err := containerCreate(context.TODO(), testCase.c, []string{"true"}, "golang:latest",
 			"boyvanduuren_octorunner-1234")
 		if !reflect.DeepEqual(err, testCase.expectedError) {
 			t.Errorf("Expected err to be %q, but it was %q", testCase.expectedError, err)
@@ -333,6 +333,10 @@ func (client MockPipelineExecutionClient) ContainerInspect(ctx context.Context, 
 
 func (client MockPipelineExecutionClient) ContainerRemove(ctx context.Context, containerID string, options types.ContainerRemoveOptions) error {
 	return client.RemoveErr
+}
+
+func (client MockPipelineExecutionClient) CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error {
+	return nil
 }
 
 func TestPipelineExecute(t *testing.T) {
@@ -581,4 +585,9 @@ func TestContainerName(t *testing.T) {
 			t.Errorf("Expected %s, but got %s", testCase.expectedValue, val)
 		}
 	}
+}
+
+func TestFindAllFiles(t *testing.T) {
+	t.Log(findAllFiles("C:\\Windows\\Temp"))
+	t.Log(findAllFiles("foo"))
 }

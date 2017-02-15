@@ -21,6 +21,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"github.com/boyvanduuren/octorunner/lib/common"
 )
 
 const (
@@ -273,9 +274,9 @@ func getRepository(httpClient *http.Client, gitClient *github.Client, repoName s
 
 	// we should now have a copy of the repository at the latest commit
 	repoDir := path.Join(tmpDir, fmt.Sprintf(githubArchiveRootDir, repoOwner, repoName, commitID))
-	if checkDirNotExists(repoDir) {
+	if common.CheckDirNotExists(repoDir) {
 		repoDir = path.Join(tmpDir, fmt.Sprintf(githubArchiveRootDir, repoOwner, repoName, commitID[0:7]))
-		if checkDirNotExists(repoDir) {
+		if common.CheckDirNotExists(repoDir) {
 			log.Error()
 			return "", fmt.Errorf("Repository not found at expected directory \"%s\" after unpacking", repoDir)
 		}
@@ -318,11 +319,6 @@ func readPipelineConfig(directory string) (pipeline.Pipeline, error) {
 
 	pipelineConfig, err = pipeline.ParseConfig(pipelineConfigBuf)
 	return pipelineConfig, err
-}
-
-func checkDirNotExists(dir string) bool {
-	s, err := os.Stat(dir)
-	return os.IsNotExist(err) == true || !s.IsDir()
 }
 
 func gitSetState(git *github.Client, state string, owner string, repo string, commit string) {

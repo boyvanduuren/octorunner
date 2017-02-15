@@ -14,6 +14,8 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strings"
+	"github.com/boyvanduuren/octorunner/lib/common"
+	"path"
 )
 
 /*
@@ -49,6 +51,7 @@ type ExecutionClient interface {
 	ContainerWait(ctx context.Context, containerID string) (int64, error)
 	ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error)
 	ContainerRemove(ctx context.Context, containerID string, options types.ContainerRemoveOptions) error
+	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error
 }
 
 /*
@@ -106,12 +109,20 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 	}
 
 	// start the container
-	volumeBind := strings.Join([]string{repoData["fsLocation"], workDir}, ":")
 	containerName := containerName(repoData["fullName"], repoData["commitId"])
-	containerID, err := containerCreate(ctx, cli, c.Script, volumeBind, c.Image, containerName)
+	containerID, err := containerCreate(ctx, cli, c.Script, c.Image, containerName)
 	if err != nil {
 		return -1, err
 	}
+
+	// copy the working data to workDir
+	//dirToCopy := repoData["fsLocation"]
+	filesToCopy := common.FindAllFiles(repoData["fsLocation"])
+	for _, fileToCopy := range filesToCopy {
+		externalPath := path.Join(workDir, filesToCopy)
+		cli.CopyToContainer(ctx, containerID, externalPath, )
+	}
+	//cli.CopyToContainer(ctx, containerID)
 
 	err = cli.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
 	if err != nil {
@@ -182,19 +193,17 @@ Create a container using imageName on a Docker host with the given commands pass
 bindDir mounted to WORKDIR (see Constants).
 Return the ID assigned to the container by Docker, or an error if something goes wrong.
 */
-func containerCreate(ctx context.Context, cli ContainerCreater, commands []string, bindDir string, imageName string,
+func containerCreate(ctx context.Context, cli ContainerCreater, commands []string, imageName string,
 	containerName string) (string, error) {
 	// create the container
 	script := strings.Join(commands, " && ")
-	log.Debugf("Creating container with entrypoint %q and bound volume %q", script, bindDir)
+	log.Debugf("Creating container with entrypoint %q", script)
 	container, err := cli.ContainerCreate(ctx,
 		&container.Config{
 			Image:      imageName,
 			Entrypoint: strslice.StrSlice{"/bin/sh", "-c", script},
 			WorkingDir: workDir},
-		&container.HostConfig{
-			AutoRemove: false,
-			Binds:      []string{bindDir}},
+		&container.HostConfig{AutoRemove: false},
 		&network.NetworkingConfig{},
 		containerName)
 
@@ -233,3 +242,4 @@ func containerName(repoFullName string, commitID string) string {
 
 	return strings.Join([]string{strings.Map(mapping, repoFullName), commitID}, "-")
 }
+
