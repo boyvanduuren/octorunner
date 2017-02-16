@@ -16,6 +16,9 @@ import (
 	"strings"
 	"github.com/boyvanduuren/octorunner/lib/common"
 	"path"
+	"os"
+	"path/filepath"
+	"bufio"
 )
 
 /*
@@ -108,7 +111,7 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 		log.Debugf("Image \"%s\" is present", c.Image)
 	}
 
-	// start the container
+	// create the container
 	containerName := containerName(repoData["fullName"], repoData["commitId"])
 	containerID, err := containerCreate(ctx, cli, c.Script, c.Image, containerName)
 	if err != nil {
@@ -116,14 +119,28 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 	}
 
 	// copy the working data to workDir
-	//dirToCopy := repoData["fsLocation"]
+	log.Infof("Copying files from %q to container %q", repoData["fsLocation"], containerID)
 	filesToCopy := common.FindAllFiles(repoData["fsLocation"])
 	for _, fileToCopy := range filesToCopy {
-		externalPath := path.Join(workDir, filesToCopy)
-		cli.CopyToContainer(ctx, containerID, externalPath, )
+		relExternalPath, err := filepath.Rel(repoData["fsLocation"], fileToCopy)
+		if err != nil {
+			return -1, fmt.Errorf("Error while getting relative external path: %v", err)
+		}
+		externalPath := path.Join(workDir, filepath.ToSlash(relExternalPath))
+		log.Debugf("Copying file %q to %q", fileToCopy, externalPath)
+		f, err := os.Open(fileToCopy)
+		if err != nil {
+			return -1, fmt.Errorf("Error while copying file(s): %q", err)
+		}
+		err = cli.CopyToContainer(ctx, containerID, externalPath, bufio.NewReader(f), types.CopyToContainerOptions{AllowOverwriteDirWithFile:false})
+		if err != nil {
+			return -1, fmt.Errorf("Error while coping file(s): %q", err)
+		}
+		f.Close()
 	}
-	//cli.CopyToContainer(ctx, containerID)
 
+	// start the container
+	log.Infof("Starting container %q", containerID)
 	err = cli.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
 	if err != nil {
 		return -1, fmt.Errorf("Error while starting container: %q", err)
@@ -189,8 +206,7 @@ func imagePull(ctx context.Context, cli ImagePuller, imageName string) error {
 }
 
 /*
-Create a container using imageName on a Docker host with the given commands passed to "/bin/sh" as entrypoint, and
-bindDir mounted to WORKDIR (see Constants).
+Create a container using imageName on a Docker host with the given commands passed to "/bin/sh" as entrypoint.
 Return the ID assigned to the container by Docker, or an error if something goes wrong.
 */
 func containerCreate(ctx context.Context, cli ContainerCreater, commands []string, imageName string,

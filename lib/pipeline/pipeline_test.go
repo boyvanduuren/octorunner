@@ -586,8 +586,3 @@ func TestContainerName(t *testing.T) {
 		}
 	}
 }
-
-func TestFindAllFiles(t *testing.T) {
-	t.Log(findAllFiles("C:\\Windows\\Temp"))
-	t.Log(findAllFiles("foo"))
-}
