@@ -120,6 +120,54 @@
 			"revisionTime": "2016-12-15T12:23:18Z"
 		},
 		{
+			"checksumSHA1": "UEKc7ATNWZ6GIUgYn2qul9taXOw=",
+			"path": "github.com/docker/docker/pkg/archive",
+			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",
+			"revisionTime": "2016-12-15T12:23:18Z"
+		},
+		{
+			"checksumSHA1": "2JrNR8c32GNP524njMcaoEQXGwU=",
+			"path": "github.com/docker/docker/pkg/fileutils",
+			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",
+			"revisionTime": "2016-12-15T12:23:18Z"
+		},
+		{
+			"checksumSHA1": "SMYyaP6WZPxZMq9+Uf9gTeuz0NY=",
+			"path": "github.com/docker/docker/pkg/idtools",
+			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",
+			"revisionTime": "2016-12-15T12:23:18Z"
+		},
+		{
+			"checksumSHA1": "bOHdx+mVYiUGVkkn41n/dqbvBrg=",
+			"path": "github.com/docker/docker/pkg/ioutils",
+			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",
+			"revisionTime": "2016-12-15T12:23:18Z"
+		},
+		{
+			"checksumSHA1": "Kbo/3X95X41i1nehe9Y3nJQ2/3M=",
+			"path": "github.com/docker/docker/pkg/longpath",
+			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",
+			"revisionTime": "2016-12-15T12:23:18Z"
+		},
+		{
+			"checksumSHA1": "Dl8V3yLmHlsl0Ihc+8JSF+0SMds=",
+			"path": "github.com/docker/docker/pkg/pools",
+			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",
+			"revisionTime": "2016-12-15T12:23:18Z"
+		},
+		{
+			"checksumSHA1": "KgHL4AWJyw51ACG4ynOWJkh3F8A=",
+			"path": "github.com/docker/docker/pkg/promise",
+			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",
+			"revisionTime": "2016-12-15T12:23:18Z"
+		},
+		{
+			"checksumSHA1": "p/Fj0GbGV88AQzaFCZ1DyFsOI1w=",
+			"path": "github.com/docker/docker/pkg/system",
+			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",
+			"revisionTime": "2016-12-15T12:23:18Z"
+		},
+		{
 			"checksumSHA1": "t04WnJ2QukyvpgAG78jV+yCgYlU=",
 			"path": "github.com/docker/docker/pkg/tlsconfig",
 			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",
@@ -236,6 +284,13 @@
 			"path": "github.com/mitchellh/mapstructure",
 			"revision": "bfdb1a85537d60bc7e954e600c250219ea497417",
 			"revisionTime": "2016-12-11T22:23:15Z"
+		},
+		{
+			"checksumSHA1": "o7SlBUez9PxzpAbJW5f4cWiAtQY=",
+			"origin": "github.com/docker/docker/vendor/github.com/opencontainers/runc/libcontainer/system",
+			"path": "github.com/opencontainers/runc/libcontainer/system",
+			"revision": "e9a69316b8245413eec9ac4fb8b2267883855b74",
+			"revisionTime": "2016-12-15T12:23:18Z"
 		},
 		{
 			"checksumSHA1": "y3Sfh9gZaVHMNPDqB0g/IqxeTwg=",
