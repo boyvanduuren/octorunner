@@ -1,4 +1,4 @@
-<a href="#octopus"><img src="https://upload.wikimedia.org/wikipedia/commons/4/4e/PSM_V14_D362_An_octopus_running.jpg" width="250" /></a>
+<a href="#octopus"><img src="https://github.com/boyvanduuren/octorunner/raw/master/assets/logo/octorunner_01.png" width="250" /></a>
 
 # octorunner [![Go Report Card](https://goreportcard.com/badge/github.com/boyvanduuren/octorunner)](https://goreportcard.com/report/github.com/boyvanduuren/octorunner)
 
@@ -76,4 +76,4 @@ they should all return 0 in order for the test to succeed.
 
 <hr />
 <a name="octopus" />
-Octopus image by Unknown, via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File%3APSM_V14_D362_An_octopus_running.jpg)
+Octopus made by [Stephan Kaffa](https://github.com/stephankaffa)
