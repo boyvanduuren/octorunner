@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/boyvanduuren/octorunner/lib/common"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -14,7 +15,6 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strings"
-	"github.com/boyvanduuren/octorunner/lib/common"
 )
 
 /*
@@ -122,7 +122,7 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 	}
 	defer src.Close()
 	defer out.Close()
-	err = cli.CopyToContainer(ctx, containerID, dst, out, types.CopyToContainerOptions{AllowOverwriteDirWithFile:false})
+	err = cli.CopyToContainer(ctx, containerID, dst, out, types.CopyToContainerOptions{AllowOverwriteDirWithFile: false})
 	if err != nil {
 		return -1, fmt.Errorf("Error while coping file(s): %q", err)
 	}
@@ -246,4 +246,3 @@ func containerName(repoFullName string, commitID string) string {
 
 	return strings.Join([]string{strings.Map(mapping, repoFullName), commitID}, "-")
 }
-
