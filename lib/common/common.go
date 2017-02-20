@@ -2,6 +2,10 @@ package common
 
 import (
 	"os"
+	"github.com/docker/docker/pkg/archive"
+	"fmt"
+	"io"
+	"path"
 	"path/filepath"
 )
 
@@ -10,22 +14,28 @@ func CheckDirNotExists(dir string) bool {
 	return os.IsNotExist(err) == true || !s.IsDir()
 }
 
-/*
-Find all the files in a given directory
- */
-func FindAllFiles(path string) []string {
-	collectedFiles := []string{}
-
-	if CheckDirNotExists(path) {
-		return collectedFiles
+func CreateTarball(source string, destination string) (string, io.ReadCloser, io.ReadCloser, error) {
+	if CheckDirNotExists(source) {
+		return "", nil, nil, fmt.Errorf("%q does not exist", source)
+	}
+	if !path.IsAbs(destination) {
+		return "", nil, nil, fmt.Errorf("%q is not absolute", destination)
 	}
 
-	collect := func(path string, f os.FileInfo, err error) error {
-		if !f.IsDir() {
-			collectedFiles = append(collectedFiles, path)
-		}
-		return nil
+	srcInfo, err := archive.CopyInfoSourcePath(source, false)
+	if err != nil {
+		return "", nil, nil, err
 	}
-	filepath.Walk(path, collect)
-	return collectedFiles
+
+	srcArchive, err := archive.TarResource(srcInfo)
+	if err != nil {
+		return "", nil, nil, err
+	}
+
+	dstDir, preparedArchive, err := archive.PrepareArchiveCopy(srcArchive, srcInfo, archive.CopyInfo{Path: destination})
+	if err != nil {
+		return "", nil, nil, err
+	}
+
+	return filepath.ToSlash(dstDir), srcArchive, preparedArchive, nil
 }
