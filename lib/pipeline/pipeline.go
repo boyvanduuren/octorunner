@@ -15,10 +15,6 @@ import (
 	"regexp"
 	"strings"
 	"github.com/boyvanduuren/octorunner/lib/common"
-	"path"
-	"os"
-	"path/filepath"
-	"bufio"
 )
 
 /*
@@ -120,23 +116,15 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 
 	// copy the working data to workDir
 	log.Infof("Copying files from %q to container %q", repoData["fsLocation"], containerID)
-	filesToCopy := common.FindAllFiles(repoData["fsLocation"])
-	for _, fileToCopy := range filesToCopy {
-		relExternalPath, err := filepath.Rel(repoData["fsLocation"], fileToCopy)
-		if err != nil {
-			return -1, fmt.Errorf("Error while getting relative external path: %v", err)
-		}
-		externalPath := path.Join(workDir, filepath.ToSlash(relExternalPath))
-		log.Debugf("Copying file %q to %q", fileToCopy, externalPath)
-		f, err := os.Open(fileToCopy)
-		if err != nil {
-			return -1, fmt.Errorf("Error while copying file(s): %q", err)
-		}
-		err = cli.CopyToContainer(ctx, containerID, externalPath, bufio.NewReader(f), types.CopyToContainerOptions{AllowOverwriteDirWithFile:false})
-		if err != nil {
-			return -1, fmt.Errorf("Error while coping file(s): %q", err)
-		}
-		f.Close()
+	dst, src, out, err := common.CreateTarball(repoData["fsLocation"], workDir)
+	if err != nil {
+		return -1, fmt.Errorf("Error while preparing tarball: %q", err)
+	}
+	defer src.Close()
+	defer out.Close()
+	err = cli.CopyToContainer(ctx, containerID, dst, out, types.CopyToContainerOptions{AllowOverwriteDirWithFile:false})
+	if err != nil {
+		return -1, fmt.Errorf("Error while coping file(s): %q", err)
 	}
 
 	// start the container

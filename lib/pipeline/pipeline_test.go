@@ -340,6 +340,11 @@ func (client MockPipelineExecutionClient) CopyToContainer(ctx context.Context, c
 }
 
 func TestPipelineExecute(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "octorunner_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	cases := []struct {
 		p             Pipeline
 		c             MockPipelineExecutionClient
@@ -389,7 +394,7 @@ func TestPipelineExecute(t *testing.T) {
 			},
 			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
-				"fsLocation": "/tmp/",
+				"fsLocation": tempDir,
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: 0,
@@ -415,7 +420,7 @@ func TestPipelineExecute(t *testing.T) {
 			},
 			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
-				"fsLocation": "/tmp/",
+				"fsLocation": tempDir,
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: 0,
@@ -441,7 +446,7 @@ func TestPipelineExecute(t *testing.T) {
 			},
 			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
-				"fsLocation": "/tmp/",
+				"fsLocation": tempDir,
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: -1,
@@ -467,7 +472,7 @@ func TestPipelineExecute(t *testing.T) {
 			},
 			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
-				"fsLocation": "/tmp/",
+				"fsLocation": tempDir,
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: -1,
@@ -492,7 +497,7 @@ func TestPipelineExecute(t *testing.T) {
 			},
 			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
-				"fsLocation": "/tmp/",
+				"fsLocation": tempDir,
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: -1,
@@ -517,7 +522,7 @@ func TestPipelineExecute(t *testing.T) {
 			},
 			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
-				"fsLocation": "/tmp/",
+				"fsLocation": tempDir,
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: -1,
@@ -542,7 +547,7 @@ func TestPipelineExecute(t *testing.T) {
 			},
 			ctx: context.WithValue(context.TODO(), repositoryData, map[string]string{
 				"fullName":   "boyvanduuren/octorunner",
-				"fsLocation": "/tmp/",
+				"fsLocation": tempDir,
 				"commitId":   "deadbeef",
 			}),
 			expectedValue: -1,
