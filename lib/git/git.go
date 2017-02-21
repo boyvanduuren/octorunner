@@ -334,5 +334,11 @@ func readPipelineConfig(directory string) (pipeline.Pipeline, error) {
 }
 
 func gitSetState(git *github.Client, state string, owner string, repo string, commit string) {
-	git.Repositories.CreateStatus(owner, repo, commit, &github.RepoStatus{State: &state})
+	context := "continuous-integration/octorunner"
+	git.Repositories.CreateStatus(owner, repo, commit,
+		&github.RepoStatus{
+			State:   &state,
+			Context: &context,
+		},
+	)
 }
