@@ -1,7 +1,6 @@
 package git
 
 import (
-	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -19,7 +18,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"github.com/boyvanduuren/octorunner/lib/common"
 )
@@ -147,20 +145,17 @@ func handlePush(payload hookPayload) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	repoPrivate := payload.Repository.Private
 	repoFullName := payload.Repository.FullName
 	repoToken := Auth.RequestToken(repoFullName)
 
 	log.Info("Repository \"" + repoFullName + "\" was pushed to")
 
-	// In case of a private repository we'll need to see if we have credentials for it, because if we don't
+	// See if we have a token for this repository. If we don't we won't be able to set a status so we abort.
 	// we cannot download the repository from github
-	if repoPrivate {
-		log.Debug("Repository is private, looking up credentials")
-		if repoToken == nil {
-			log.Error("No token found for repository \"" + repoFullName + "\", returning")
-			return
-		}
+	if repoToken == nil {
+		log.Errorf("Didn't find token for %q, this means we won't be able to set a status. Aborting.",
+			repoFullName)
+		return
 	}
 
 	repoName := payload.Repository.Name
@@ -228,7 +223,6 @@ func handlePush(payload hookPayload) {
 func getRepository(httpClient *http.Client, gitClient *github.Client, repoName string, repoOwner string,
 	commitID string, repoToken *oauth2.Token) (string, error) {
 	const githubArchiveURL = "https://github.com/%s/%s/archive/%s.zip"
-	const githubArchiveRootDir = "%s-%s-%s"
 	const githubArchiveFormat = "zipball"
 	var archiveURL *url.URL
 	var err error
@@ -263,23 +257,20 @@ func getRepository(httpClient *http.Client, gitClient *github.Client, repoName s
 	}
 	log.Debug("Archive downloaded to ", archivePath.Name())
 
-	err = unzip(archivePath.Name(), tmpDir)
+	repoDir, err := common.Unzip(archivePath.Name(), tmpDir)
 	if err != nil {
 		return "", fmt.Errorf("Error while unpacking archive: %v", err)
 	}
+	log.Debugf("Unpacked archive to %q", repoDir)
 
 	// cleanup the archive
 	archivePath.Close()
 	os.Remove(archivePath.Name())
 
 	// we should now have a copy of the repository at the latest commit
-	repoDir := path.Join(tmpDir, fmt.Sprintf(githubArchiveRootDir, repoOwner, repoName, commitID))
 	if common.CheckDirNotExists(repoDir) {
-		repoDir = path.Join(tmpDir, fmt.Sprintf(githubArchiveRootDir, repoOwner, repoName, commitID[0:7]))
-		if common.CheckDirNotExists(repoDir) {
-			log.Error()
-			return "", fmt.Errorf("Repository not found at expected directory \"%s\" after unpacking", repoDir)
-		}
+		log.Error()
+		return "", fmt.Errorf("Repository not found at expected directory \"%s\" after unpacking", repoDir)
 	}
 	log.Debug("Repository unpacked to ", repoDir)
 
@@ -325,48 +316,4 @@ func gitSetState(git *github.Client, state string, owner string, repo string, co
 	git.Repositories.CreateStatus(owner, repo, commit, &github.RepoStatus{State: &state})
 }
 
-// Extract a zip file to a destination.
-// By "swtdrgn" from http://stackoverflow.com/a/24430720
-func unzip(src, dest string) error {
-	r, err := zip.OpenReader(src)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
 
-	for _, f := range r.File {
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-		defer rc.Close()
-
-		fpath := filepath.Join(dest, f.Name)
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(fpath, f.Mode())
-		} else {
-			var fdir string
-			if lastIndex := strings.LastIndex(fpath, string(os.PathSeparator)); lastIndex > -1 {
-				fdir = fpath[:lastIndex]
-			}
-
-			err = os.MkdirAll(fdir, f.Mode())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			f, err := os.OpenFile(
-				fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-
-			_, err = io.Copy(f, rc)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
