@@ -30,12 +30,13 @@ TLDR: `DOCKER_HOST=http://<ip>:<port>`, `DOCKER_API_VERSION=<version>`, `DOCKER_
 
 ### Repository configuration
 
-You'll want to configure access tokens and secrets for the repositories that'll use `octorunner` as webhook endpoint. The access tokens
-will be used to set statuses on commits, and secrets are used to make sure an event actually originates from Github, not some unknown
+You'll want to configure access tokens and secrets for the repositories that use `octorunner` as webhook endpoint. The access tokens
+will be used to set statuses on commits, and download private repository archives. Secrets are used to make sure an event actually originates from Github, not some unknown
 entity that happens to know your endpoint. (see [securing your webhooks](https://developer.github.com/webhooks/securing/))
 
-Repository configuration should work via the environment as well, but I'm having some trouble with that right now. You can provide
-repository configuration as follows (example in `yaml`):
+There are two methods of providing `octorunner` with this information.
+
+Use the `config` file, which can be formatted in any of the previously named languages. (Example in `yaml`):
 
 ```yaml
 repositories:
@@ -43,6 +44,8 @@ repositories:
     token: YOUR_ACCESS_TOKEN
     secret: YOUR_SECRET
 ```
+
+Use env vars that are formatted as follows: `OCTORUNNER_account/repository_{TOKEN,SECRET}`. E.g. `OCTORUNNER_boyvanduuren/octorunner_SECRET=foobar`.
 
 ### Github configuration
 
@@ -68,7 +71,7 @@ they should all return 0 in order for the test to succeed.
 
 ## TODO
 
-* Make sure repository config can be passed as environment variables
+* ~~Make sure repository config can be passed as environment variables~~
 * Handle pull request events
 * Store test output
 * Write more and proper tests
