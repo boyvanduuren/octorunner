@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	envPrefix        = "octorunner"
 	configFile       = "config"
 	configPath       = "."
 	logLevel         = "loglevel"
@@ -37,7 +36,7 @@ func main() {
 	// Configure viper to read config from the environment
 	// We'll use a EnvKeyReplacer so OCTORUNNER_GIT_APIKEY
 	// overrides git.apikey defined in a config file
-	viper.SetEnvPrefix(envPrefix)
+	viper.SetEnvPrefix(git.EnvPrefix)
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
@@ -76,7 +75,7 @@ func main() {
 		for k := range repositories {
 			repos = append(repos, k)
 		}
-		log.Info("Auth data found for the following repos: ", repos)
+		log.Info("Auth data found for the following repos: ", repos, " (this excludes ENV vars)")
 		git.Auth = auth.SimpleAuth{Store: repositories}
 	}
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	authentication "github.com/boyvanduuren/octorunner/lib/auth"
+	"github.com/boyvanduuren/octorunner/lib/common"
 	"github.com/boyvanduuren/octorunner/lib/pipeline"
 	"github.com/docker/docker/client"
 	"github.com/google/go-github/github"
@@ -19,7 +20,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"github.com/boyvanduuren/octorunner/lib/common"
 )
 
 const (
@@ -29,6 +29,9 @@ const (
 	tmpDirPrefix    = "octorunner-"
 	tmpFilePrefix   = "archive-"
 	pipelineFile    = ".octorunner"
+	EnvPrefix       = "octorunner"
+	envRepoToken    = "%s_%s_TOKEN"
+	envRepoSecret   = "%s_%s_SECRET"
 )
 
 var Auth authentication.Method
@@ -118,19 +121,27 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Only then will we call our handler, else we'll log an error and return
 	repoSecret := Auth.RequestSecret(payload.Repository.FullName)
 	if len(repoSecret) == 0 {
-		log.Error("No secret was configured, cannot verify their signature")
-	} else {
-		signature := r.Header.Get(signatureHeader)
-		if signature == "" {
-			log.Error("Expected signature for payload, but none given")
-			return
-		}
-		log.Debug("Received signature " + signature)
-		calculatedSignature := "sha1=" + authentication.CalculateSignature(repoSecret, payloadBody)
-		log.Debug("Calculated signature ", calculatedSignature)
-		if !authentication.CompareSignatures([]byte(signature), []byte(calculatedSignature)) {
-			log.Error("Signatures didn't match")
-			return
+		// We need to manually search the env, because viper doesn't seem to load these
+		// environment vars into the config.
+		repoSecretEnvKey := fmt.Sprintf(envRepoSecret, strings.ToUpper(EnvPrefix), payload.Repository.FullName)
+		log.Debugf("Couldn't find secret in config file, looking if environment var %q exists", repoSecretEnvKey)
+		repoSecret = []byte(os.Getenv(repoSecretEnvKey))
+		if len(repoSecret) == 0 {
+			log.Error("No secret was configured, cannot verify their signature")
+		} else {
+			log.Debugf("Found secret for %q in environment", payload.Repository.FullName)
+			signature := r.Header.Get(signatureHeader)
+			if signature == "" {
+				log.Error("Expected signature for payload, but none given")
+				return
+			}
+			log.Debug("Received signature " + signature)
+			calculatedSignature := "sha1=" + authentication.CalculateSignature(repoSecret, payloadBody)
+			log.Debug("Calculated signature ", calculatedSignature)
+			if !authentication.CompareSignatures([]byte(signature), []byte(calculatedSignature)) {
+				log.Error("Signatures didn't match")
+				return
+			}
 		}
 	}
 	go eventHandler(payload)
@@ -153,9 +164,18 @@ func handlePush(payload hookPayload) {
 	// See if we have a token for this repository. If we don't we won't be able to set a status so we abort.
 	// we cannot download the repository from github
 	if repoToken == nil {
-		log.Errorf("Didn't find token for %q, this means we won't be able to set a status. Aborting.",
-			repoFullName)
-		return
+		// We need to manually search the env, because viper doesn't seem to load these
+		// environment vars into the config.
+		repoTokenEnvKey := fmt.Sprintf(envRepoToken, strings.ToUpper(EnvPrefix), payload.Repository.FullName)
+		log.Debugf("Couldn't find token in config file, looking if environment var %q exists", repoTokenEnvKey)
+		repoTokenEnvVal := os.Getenv(repoTokenEnvKey)
+		if repoTokenEnvVal == "" {
+			log.Errorf("Didn't find token for %q, this means we won't be able to set a status. Aborting.",
+				repoFullName)
+			return
+		}
+		log.Debugf("Found token for %q in environment", repoFullName)
+		repoToken = &oauth2.Token{AccessToken: repoTokenEnvVal}
 	}
 
 	repoName := payload.Repository.Name
@@ -168,6 +188,7 @@ func handlePush(payload hookPayload) {
 	 That commit will probably already have a state assigned, so we can just return
 	*/
 	if commitID == "0000000000000000000000000000000000000000" {
+		log.Info("Not doing anything, this was a merge commit")
 		return
 	}
 
@@ -315,5 +336,3 @@ func readPipelineConfig(directory string) (pipeline.Pipeline, error) {
 func gitSetState(git *github.Client, state string, owner string, repo string, commit string) {
 	git.Repositories.CreateStatus(owner, repo, commit, &github.RepoStatus{State: &state})
 }
-
-
