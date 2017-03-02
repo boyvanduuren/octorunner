@@ -2,3 +2,5 @@
 config*
 vendor/*
 !vendor/vendor.json
+*.db
+.[0-9a-z]*
