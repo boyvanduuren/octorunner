@@ -15,6 +15,8 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strings"
+	"bufio"
+	"github.com/boyvanduuren/octorunner/lib/persist"
 )
 
 /*
@@ -51,6 +53,7 @@ type ExecutionClient interface {
 	ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error)
 	ContainerRemove(ctx context.Context, containerID string, options types.ContainerRemoveOptions) error
 	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error
+	ContainerLogs(ctx context.Context, container string, options types.ContainerLogsOptions) (io.ReadCloser, error)
 }
 
 /*
@@ -133,6 +136,8 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 	if err != nil {
 		return -1, fmt.Errorf("Error while starting container: %q", err)
 	}
+
+	go logOutput(ctx, cli, containerID)
 
 	// wait until the container is done
 	cli.ContainerWait(ctx, containerID)
@@ -225,6 +230,44 @@ func containerCreate(ctx context.Context, cli ContainerCreater, commands []strin
 	log.Debugf("Container with ID %q created", container.ID)
 
 	return container.ID, nil
+}
+
+func logOutput(ctx context.Context, cli ExecutionClient, containerID string) (error) {
+	options := types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow: true,
+	}
+
+	rc, err := cli.ContainerLogs(ctx, containerID, options)
+	if err != nil {
+		return err
+	}
+
+	repoData, ok := ctx.Value(repositoryData).(map[string]string)
+	if !ok {
+		return errors.New("Error while reading context")
+	}
+	//containerName := containerName(repoData["fullName"], repoData["commitId"])
+	log.Debug(repoData["fullName"])
+	repoName := strings.Split(repoData["fullName"], "/")[0]
+	repoOwner := strings.Split(repoData["fullName"], "/")[1]
+	commitID := repoData["commitId"]
+	writer, err := persist.CreateOutputWriter(repoName, repoOwner, commitID, "default")
+	if err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(rc)
+	for scanner.Scan() {
+		writer(scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 /*
