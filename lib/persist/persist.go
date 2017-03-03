@@ -1,10 +1,10 @@
 package persist
 
 import (
-	"github.com/cznic/ql"
 	"database/sql"
-	log "github.com/Sirupsen/logrus"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
+	"github.com/cznic/ql"
 )
 
 var connection *sql.DB
@@ -62,7 +62,7 @@ func initializeDatabase() error {
 
 func findProjectID(name string, owner string) (int64, error) {
 	var id *int64
-	_ = connection.QueryRow("SELECT id() FROM Projects WHERE name = ?1 " +
+	_ = connection.QueryRow("SELECT id() FROM Projects WHERE name = ?1 "+
 		"AND owner = ?2", name, owner).Scan(&id)
 
 	if id == nil {
@@ -80,7 +80,7 @@ func createProject(name string, owner string) (int64, error) {
 	res, err := tx.Exec("INSERT INTO Projects VALUES (?1, ?2)", name, owner)
 	tx.Commit()
 	if err != nil {
-		 return -1, err
+		return -1, err
 	}
 
 	id, err := res.LastInsertId()
@@ -93,7 +93,7 @@ func createProject(name string, owner string) (int64, error) {
 
 func findJobID(projectID int64, commitID string, job string) (int64, error) {
 	var id *int64
-	_ = connection.QueryRow("SELECT id() FROM Jobs WHERE project = ?1 " +
+	_ = connection.QueryRow("SELECT id() FROM Jobs WHERE project = ?1 "+
 		"AND commitID = ?2 AND job = ?3", projectID, commitID, job).Scan(&id)
 
 	if id == nil {
@@ -135,7 +135,6 @@ func createOutput(jobID int64, data string) (int64, error) {
 		return -1, fmt.Errorf("Cannot add output to job with ID %d as it doesn't exist", jobID)
 	}
 
-
 	tx, err := connection.Begin()
 	if err != nil {
 		return -1, err
@@ -155,12 +154,13 @@ func createOutput(jobID int64, data string) (int64, error) {
 	return id, nil
 }
 
-func WriteOutput(projectName string, projectOwner string, commitID string, job string, data string) error {
+func CreateOutputWriter(projectName string, projectOwner string, commitID string,
+	job string) (func(string) (int64, error), error) {
 	// Get the ID of this project
 	log.Debugf("Querying for project ID of project with name %q and owner %q", projectName, projectOwner)
 	projectID, err := findProjectID(projectName, projectOwner)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if projectID == -1 {
@@ -168,7 +168,7 @@ func WriteOutput(projectName string, projectOwner string, commitID string, job s
 		log.Debugf("Project not found, creating")
 		projectID, err = createProject(projectName, projectOwner)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	log.Debugf("Project has ID %d", projectID)
@@ -179,16 +179,17 @@ func WriteOutput(projectName string, projectOwner string, commitID string, job s
 		log.Debugf("Job not found, creating")
 		jobID, err = createJob(projectID, commitID, job)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	log.Debugf("Job has ID %d", jobID)
 
-	outputID, err := createOutput(jobID, "foobar")
-	if err != nil {
-		return err
-	}
-	log.Debugf("Added output %d", outputID)
-
-	return nil
+	log.Debugf("Returning a writer for project %d, job %d", projectID, jobID)
+	return func(line string) (int64, error) {
+		outputID, err := createOutput(jobID, line)
+		if err != nil {
+			return -1, err
+		}
+		return outputID, nil
+	}, nil
 }
