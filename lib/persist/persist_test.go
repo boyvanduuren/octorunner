@@ -2,15 +2,14 @@ package persist
 
 import (
 	"testing"
-	"fmt"
+	"github.com/Sirupsen/logrus"
 )
 
 func TestWriteOutput(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
 	OpenDatabase("octorunner.db")
-	createProject("projectName", "projectOwner")
-	id, err := findProjectID("projectName", "projectOwner");
+	err := WriteOutput("foo", "bar", "deafbeef", "default", "everything is fine")
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(id)
 }
