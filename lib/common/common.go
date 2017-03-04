@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"archive/zip"
 	"strings"
+	"regexp"
 )
 
 /*
@@ -99,4 +100,18 @@ func Unzip(src, dest string) (string, error) {
 		}
 	}
 	return firstEncounteredDir, nil
+}
+
+/*
+ExtractDateAndOutput takes a log line from a Docker container and extracts the RFC3339 timestamp and log message.
+ */
+func ExtractDateAndOutput(s string) (string, string, error){
+	pattern := regexp.MustCompile("^.*([0-9]{4}-[0-1][0-9]-[0-3][0-9]T[0-2][0-9]:[0-5][0-9]:[0-5][0-9]\\." +
+		"[0-9]{9}Z) (.*)$")
+
+	if pattern.Match([]byte(s)) {
+		matches := pattern.FindStringSubmatch(s)
+		return matches[1], matches[2], nil
+	}
+	return "", "", fmt.Errorf("Unable to extract time or data from %q", s)
 }
