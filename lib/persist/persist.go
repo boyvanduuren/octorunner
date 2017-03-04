@@ -5,6 +5,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/cznic/ql"
+	"time"
 )
 
 var connection *sql.DB
@@ -128,7 +129,7 @@ func createJob(projectID int64, commitID string, job string) (int64, error) {
 	return id, nil
 }
 
-func createOutput(jobID int64, data string) (int64, error) {
+func createOutput(jobID int64, data, date string) (int64, error) {
 	// Make sure we refer to an existing project
 	rows, err := connection.Query("SELECT id() FROM Jobs WHERE id() = ?1", jobID)
 	if err != nil || !rows.Next() {
@@ -140,7 +141,8 @@ func createOutput(jobID int64, data string) (int64, error) {
 		return -1, err
 	}
 
-	res, err := tx.Exec("INSERT INTO Output VALUES (?1, ?2, now())", jobID, data)
+	q := fmt.Sprintf("INSERT INTO Output VALUES (?1, ?2, parseTime(%q, ?3))", time.RFC3339)
+	res, err := tx.Exec(q, jobID, data, date)
 	tx.Commit()
 	if err != nil {
 		return -1, err
@@ -155,7 +157,7 @@ func createOutput(jobID int64, data string) (int64, error) {
 }
 
 func CreateOutputWriter(projectName string, projectOwner string, commitID string,
-	job string) (func(string) (int64, error), error) {
+	job string) (func(string, string) (int64, error), error) {
 	// Get the ID of this project
 	log.Debugf("Querying for project ID of project with name %q and owner %q", projectName, projectOwner)
 	projectID, err := findProjectID(projectName, projectOwner)
@@ -185,8 +187,8 @@ func CreateOutputWriter(projectName string, projectOwner string, commitID string
 	log.Debugf("Job has ID %d", jobID)
 
 	log.Debugf("Returning a writer for project %d, job %d", projectID, jobID)
-	return func(line string) (int64, error) {
-		outputID, err := createOutput(jobID, line)
+	return func(line, date string) (int64, error) {
+		outputID, err := createOutput(jobID, line, date)
 		if err != nil {
 			return -1, err
 		}
