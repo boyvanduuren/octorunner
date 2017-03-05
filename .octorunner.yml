@@ -6,4 +6,5 @@ script:
   - ln -s /var/run/octorunner /go/src/github.com/boyvanduuren/octorunner
   - cd /go/src/github.com/boyvanduuren/octorunner
   - govendor sync
+  - go get
   - go test ./...

@@ -4,22 +4,25 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/boyvanduuren/octorunner/lib/auth"
 	"github.com/boyvanduuren/octorunner/lib/git"
+	"github.com/boyvanduuren/octorunner/lib/persist"
 	"github.com/spf13/viper"
 	"net/http"
 	"strings"
 )
 
 const (
-	configFile       = "config"
-	configPath       = "."
-	logLevel         = "loglevel"
-	logLevelDefault  = "info"
-	webServer        = "web.server"
-	webServerDefault = "127.0.0.1"
-	webPort          = "web.port"
-	webPortDefault   = "8080"
-	webPath          = "web.path"
-	webPathDefault   = "payload"
+	configFile          = "config"
+	configPath          = "."
+	logLevel            = "loglevel"
+	logLevelDefault     = "info"
+	webServer           = "web.server"
+	webServerDefault    = "127.0.0.1"
+	webPort             = "web.port"
+	webPortDefault      = "8080"
+	webPath             = "web.path"
+	webPathDefault      = "payload"
+	databasePath        = "database.path"
+	databasePathDefault = "octorunner.db"
 )
 
 // Main entry point for our program. Used to read and set the configuration we'll be using, and setup a webserver.
@@ -50,6 +53,7 @@ func main() {
 	viper.SetDefault(webServer, webServerDefault)
 	viper.SetDefault(webPort, webPortDefault)
 	viper.SetDefault(webPath, webPathDefault)
+	viper.SetDefault(databasePath, databasePathDefault)
 
 	// Set log level
 	logLevel := strings.ToLower(viper.GetString(logLevel))
@@ -65,9 +69,17 @@ func main() {
 	webPort := viper.GetString(webPort)
 	webPath := viper.GetString(webPath)
 
+	// See if the database exists
+	database := viper.GetString(databasePath)
+	// Setup connection pool
+	err := persist.OpenDatabase(database, &persist.Connection)
+	if err != nil {
+		log.Panicf("Cannot setup connection to database: %q", err)
+	}
+
 	// Get authentication data for git
 	var repositories map[string]auth.Repository
-	err := viper.UnmarshalKey("repositories", &repositories)
+	err = viper.UnmarshalKey("repositories", &repositories)
 	if err != nil {
 		log.Info("No auth data for repositories found")
 	} else {

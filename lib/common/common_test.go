@@ -1,12 +1,13 @@
 package common
 
 import (
-	"testing"
-	"os"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
+	"testing"
 )
 
 func TestCreateTarball(t *testing.T) {
@@ -43,5 +44,21 @@ func TestCreateTarball(t *testing.T) {
 	}
 	if w == 0 {
 		t.Fatal("Expected more than one byte to be written")
+	}
+}
+
+func TestExtractDateAndOutput(t *testing.T) {
+	expectedDate := "2017-03-04T11:58:34.890790992Z"
+	expectedData := "Foobar"
+	date, data, err := ExtractDateAndOutput(fmt.Sprintf("\x00\x00%s %s", expectedDate, expectedData))
+	if err != nil {
+		t.Fatalf("Got unexpected error: %q", err)
+	}
+
+	if date != expectedDate {
+		t.Fatalf("Date %q didn't match %q", date, expectedData)
+	}
+	if data != expectedData {
+		t.Fatalf("Data didn't %q didn't match %q", data, expectedData)
 	}
 }

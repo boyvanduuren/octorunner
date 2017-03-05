@@ -1,10 +1,12 @@
 package pipeline
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/boyvanduuren/octorunner/lib/common"
+	"github.com/boyvanduuren/octorunner/lib/persist"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -51,6 +53,7 @@ type ExecutionClient interface {
 	ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error)
 	ContainerRemove(ctx context.Context, containerID string, options types.ContainerRemoveOptions) error
 	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error
+	ContainerLogs(ctx context.Context, container string, options types.ContainerLogsOptions) (io.ReadCloser, error)
 }
 
 /*
@@ -133,9 +136,27 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 	if err != nil {
 		return -1, fmt.Errorf("Error while starting container: %q", err)
 	}
+	containerRunning := true
 
-	// wait until the container is done
+	// if we have a connection to a db, log output
+	if persist.Connection != nil {
+		// get a writer that writes to the Output table in our database
+		repoOwner := strings.Split(repoData["fullName"], "/")[0]
+		repoName := strings.Split(repoData["fullName"], "/")[1]
+		commitID := repoData["commitId"]
+		writer, err := persist.CreateOutputWriter(repoName, repoOwner, commitID, "default", persist.Connection)
+		if err != nil {
+			return -1, err
+		}
+		go logOutput(ctx, cli, containerID, writer, &containerRunning)
+	}
+
+	// start a goroutine that logs output from the container
+
+	// block until the container is done
 	cli.ContainerWait(ctx, containerID)
+	// signal the logOutput goroutine to stop
+	containerRunning = false
 
 	// inspect the finished container so we can get the exitcode
 	inspectData, err := cli.ContainerInspect(ctx, containerID)
@@ -225,6 +246,51 @@ func containerCreate(ctx context.Context, cli ContainerCreater, commands []strin
 	log.Debugf("Container with ID %q created", container.ID)
 
 	return container.ID, nil
+}
+
+/*
+LogOutput checks a running container for log messages and passes messages with timestamps to a writer.
+*/
+func logOutput(ctx context.Context, cli ExecutionClient, containerID string,
+	writer func(string, string) (int64, error), containerRunning *bool) error {
+	options := types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Timestamps: true,
+	}
+
+	rc, err := cli.ContainerLogs(ctx, containerID, options)
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	scanner := bufio.NewScanner(rc)
+	// while the container is running check for new log messages
+	for *containerRunning {
+		if scanner.Scan() {
+			line := scanner.Text()
+			// extract the message and date from the log message
+			date, data, err := common.ExtractDateAndOutput(line)
+			// we might have received an empty line, in which case we want to continue to the next iteration
+			if err != nil {
+				continue
+			}
+			// write the message and date to our writer
+			_, err = writer(data, date)
+			if err != nil {
+				log.Errorf("Error while writing log to writer: %v", err)
+				return err
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			log.Errorf("Error while scanning for log messages: %v")
+			return err
+		}
+	}
+
+	return nil
 }
 
 /*

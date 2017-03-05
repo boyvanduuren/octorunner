@@ -339,6 +339,18 @@ func (client MockPipelineExecutionClient) CopyToContainer(ctx context.Context, c
 	return nil
 }
 
+type nopCloser struct {
+	io.Reader
+}
+
+func (nopCloser) Close() error {
+	return nil
+}
+
+func (client MockPipelineExecutionClient) ContainerLogs(ctx context.Context, container string, options types.ContainerLogsOptions) (io.ReadCloser, error) {
+	return ioutil.NopCloser(nopCloser{bytes.NewBufferString("")} ), nil
+}
+
 func TestPipelineExecute(t *testing.T) {
 	tempDir, err := ioutil.TempDir("", "octorunner_test")
 	if err != nil {
