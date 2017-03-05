@@ -72,7 +72,7 @@ func main() {
 	// See if the database exists
 	database := viper.GetString(databasePath)
 	// Setup connection pool
-	err := persist.OpenDatabase(database)
+	err := persist.OpenDatabase(database, &persist.Connection)
 	if err != nil {
 		log.Panicf("Cannot setup connection to database: %q", err)
 	}
