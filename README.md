@@ -73,7 +73,7 @@ they should all return 0 in order for the test to succeed.
 
 * ~~Make sure repository config can be passed as environment variables~~
 * Handle pull request events
-* Store test output
+* ~~Store test output~~
 * Write more and proper tests
 * Add an option to setup webhooks automatically
 
