@@ -4,3 +4,5 @@ vendor/*
 !vendor/vendor.json
 *.db
 .[0-9a-z]*
+octorunner
+octorunner.exe
