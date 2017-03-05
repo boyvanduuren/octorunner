@@ -58,7 +58,7 @@ func TestFindProject(t *testing.T) {
 	// Make sure the IDs match
 	id = findProjectID(projectName, projectOwner, conn)
 	if id != createdID {
-		t.Fatal("Expected same IDs when searching for newly created project, got %d and %d", id, createdID)
+		t.Fatalf("Expected same IDs when searching for newly created project, got %d and %d", id, createdID)
 	}
 
 }
@@ -124,7 +124,7 @@ func TestFindJob(t *testing.T) {
 	// Make sure the IDs match
 	id = findJobID(projectID, commitID, jobName, conn)
 	if id != createdID {
-		t.Fatal("Expected same IDs when searching for newly created job, got %d and %d", id, createdID)
+		t.Fatalf("Expected same IDs when searching for newly created job, got %d and %d", id, createdID)
 	}
 
 }

@@ -8,8 +8,12 @@ import (
 	"time"
 )
 
+// Connection holds the connection to the database.
 var Connection *sql.DB
 
+/*
+OpenDatabase opens a QL embedded database connection to a db at a certain path.
+ */
 func OpenDatabase(path string, connectionPtr **sql.DB) error {
 	ql.RegisterDriver()
 	db, err := sql.Open("ql", path)
@@ -156,6 +160,11 @@ func createOutput(jobID int64, data, date string, conn *sql.DB) (int64, error) {
 	return id, nil
 }
 
+/*
+CreateOutputWriter returns a function that can be used to write to the "Output" table. That table is used
+to write test output to. Test output belongs to a certain job, which in turn belongs to a project. Before
+returning the writer we make sure these tuples exist or are created.
+ */
 func CreateOutputWriter(projectName string, projectOwner string, commitID string, job string,
 	conn *sql.DB) (func(string, string) (int64, error), error) {
 	var err error
