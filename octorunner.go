@@ -4,10 +4,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/boyvanduuren/octorunner/lib/auth"
 	"github.com/boyvanduuren/octorunner/lib/git"
+	"github.com/boyvanduuren/octorunner/lib/persist"
 	"github.com/spf13/viper"
 	"net/http"
 	"strings"
-	"github.com/boyvanduuren/octorunner/lib/persist"
 )
 
 const (

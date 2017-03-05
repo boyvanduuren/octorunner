@@ -1,13 +1,13 @@
 package common
 
 import (
-	"testing"
-	"os"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
-	"fmt"
+	"testing"
 )
 
 func TestCreateTarball(t *testing.T) {

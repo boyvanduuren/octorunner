@@ -1,10 +1,12 @@
 package pipeline
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/boyvanduuren/octorunner/lib/common"
+	"github.com/boyvanduuren/octorunner/lib/persist"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -15,8 +17,6 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strings"
-	"bufio"
-	"github.com/boyvanduuren/octorunner/lib/persist"
 )
 
 /*
@@ -247,13 +247,13 @@ func containerCreate(ctx context.Context, cli ContainerCreater, commands []strin
 
 /*
 LogOutput checks a running container for log messages and passes messages with timestamps to a writer.
- */
+*/
 func logOutput(ctx context.Context, cli ExecutionClient, containerID string,
-		writer func(string, string) (int64, error), containerRunning *bool) (error) {
+	writer func(string, string) (int64, error), containerRunning *bool) error {
 	options := types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
-		Follow: true,
+		Follow:     true,
 		Timestamps: true,
 	}
 
@@ -266,7 +266,7 @@ func logOutput(ctx context.Context, cli ExecutionClient, containerID string,
 	scanner := bufio.NewScanner(rc)
 	// while the container is running check for new log messages
 	for *containerRunning {
-		if (scanner.Scan()) {
+		if scanner.Scan() {
 			line := scanner.Text()
 			// extract the message and date from the log message
 			date, data, err := common.ExtractDateAndOutput(line)

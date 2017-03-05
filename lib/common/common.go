@@ -1,20 +1,20 @@
 package common
 
 import (
-	"os"
-	"github.com/docker/docker/pkg/archive"
+	"archive/zip"
 	"fmt"
+	"github.com/docker/docker/pkg/archive"
 	"io"
+	"os"
 	"path"
 	"path/filepath"
-	"archive/zip"
-	"strings"
 	"regexp"
+	"strings"
 )
 
 /*
 CheckDirNotExists returns true if a given path doesn't exist, or is not a directory.
- */
+*/
 func CheckDirNotExists(dir string) bool {
 	s, err := os.Stat(dir)
 	return os.IsNotExist(err) == true || !s.IsDir()
@@ -24,7 +24,7 @@ func CheckDirNotExists(dir string) bool {
 CreateTarball takes a source and destination. A string will be returned denoting the path the tarball should
 be copied to for the target container. The first ReadCloser is opened on the source path, the second represents
 the tarball in memory.
- */
+*/
 func CreateTarball(source string, destination string) (string, io.ReadCloser, io.ReadCloser, error) {
 	if CheckDirNotExists(source) {
 		return "", nil, nil, fmt.Errorf("%q does not exist", source)
@@ -74,7 +74,9 @@ func Unzip(src, dest string) (string, error) {
 		fpath := filepath.Join(dest, f.Name)
 		if f.FileInfo().IsDir() {
 			// If this is the first dir we encounter, it's the root directory. Assign it so we can return it.
-			if firstEncounteredDir == "" { firstEncounteredDir = fpath }
+			if firstEncounteredDir == "" {
+				firstEncounteredDir = fpath
+			}
 			os.MkdirAll(fpath, f.Mode())
 		} else {
 			var fdir string
@@ -104,8 +106,8 @@ func Unzip(src, dest string) (string, error) {
 
 /*
 ExtractDateAndOutput takes a log line from a Docker container and extracts the RFC3339 timestamp and log message.
- */
-func ExtractDateAndOutput(s string) (string, string, error){
+*/
+func ExtractDateAndOutput(s string) (string, string, error) {
 	pattern := regexp.MustCompile("^.*([0-9]{4}-[0-1][0-9]-[0-3][0-9]T[0-2][0-9]:[0-5][0-9]:[0-5][0-9]\\." +
 		"[0-9]{9}Z) (.*)$")
 

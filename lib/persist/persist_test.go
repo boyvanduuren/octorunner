@@ -1,13 +1,14 @@
 package persist
 
 import (
-	"testing"
 	"database/sql"
 	"os"
+	"testing"
 	"time"
 )
 
 var conn *sql.DB
+
 const testDbName = "test.db"
 
 func init() {
@@ -172,4 +173,3 @@ func TestCreateOutputWriter(t *testing.T) {
 	}
 
 }
-

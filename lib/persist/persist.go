@@ -157,7 +157,7 @@ func createOutput(jobID int64, data, date string, conn *sql.DB) (int64, error) {
 }
 
 func CreateOutputWriter(projectName string, projectOwner string, commitID string, job string,
-		conn *sql.DB) (func(string, string) (int64, error), error) {
+	conn *sql.DB) (func(string, string) (int64, error), error) {
 	var err error
 	// Get the ID of this project
 	log.Debugf("Querying for project ID of project with name %q and owner %q", projectName, projectOwner)
