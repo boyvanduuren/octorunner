@@ -138,17 +138,20 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 	}
 	containerRunning := true
 
-	// get a writer that writes to the Output table in our database
-	repoOwner := strings.Split(repoData["fullName"], "/")[0]
-	repoName := strings.Split(repoData["fullName"], "/")[1]
-	commitID := repoData["commitId"]
-	writer, err := persist.CreateOutputWriter(repoName, repoOwner, commitID, "default", persist.Connection)
-	if err != nil {
-		return -1, err
+	// if we have a connection to a db, log output
+	if persist.Connection != nil {
+		// get a writer that writes to the Output table in our database
+		repoOwner := strings.Split(repoData["fullName"], "/")[0]
+		repoName := strings.Split(repoData["fullName"], "/")[1]
+		commitID := repoData["commitId"]
+		writer, err := persist.CreateOutputWriter(repoName, repoOwner, commitID, "default", persist.Connection)
+		if err != nil {
+			return -1, err
+		}
+		go logOutput(ctx, cli, containerID, writer, &containerRunning)
 	}
 
 	// start a goroutine that logs output from the container
-	go logOutput(ctx, cli, containerID, writer, &containerRunning)
 
 	// block until the container is done
 	cli.ContainerWait(ctx, containerID)
