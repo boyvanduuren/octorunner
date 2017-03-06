@@ -1,13 +1,12 @@
 package persist
 
 import (
-	"database/sql"
 	"os"
 	"testing"
 	"time"
 )
 
-var conn *sql.DB
+var conn DB
 
 const testDbName = "test.db"
 
@@ -22,7 +21,7 @@ func TestCreateProject(t *testing.T) {
 	projectOwner := "bcd"
 
 	// Create a project
-	id, err := createProject(projectName, projectOwner, conn)
+	id, err := conn.createProject(projectName, projectOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +30,7 @@ func TestCreateProject(t *testing.T) {
 	}
 
 	// Create it again, this should result in an error
-	id, err = createProject(projectName, projectOwner, conn)
+	id, err = conn.createProject(projectName, projectOwner)
 	if err == nil {
 		t.Fatal("Expected an error, but didn't get one")
 	}
@@ -44,19 +43,19 @@ func TestFindProject(t *testing.T) {
 	projectName := "TestFindProject"
 	projectOwner := "bcd"
 
-	id := findProjectID(projectName, projectOwner, conn)
+	id := conn.findProjectID(projectName, projectOwner)
 	if id != -1 {
 		t.Fatal("Expected ID -1 when searching for non-existent project")
 	}
 
 	// Create the project
-	createdID, err := createProject(projectName, projectOwner, conn)
+	createdID, err := conn.createProject(projectName, projectOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Make sure the IDs match
-	id = findProjectID(projectName, projectOwner, conn)
+	id = conn.findProjectID(projectName, projectOwner)
 	if id != createdID {
 		t.Fatalf("Expected same IDs when searching for newly created project, got %d and %d", id, createdID)
 	}
@@ -68,7 +67,7 @@ func TestCreateJob(t *testing.T) {
 	projectName := "TestCreateJob"
 	projectOwner := "bcd"
 
-	projectID, err := createProject(projectName, projectOwner, conn)
+	projectID, err := conn.createProject(projectName, projectOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +75,7 @@ func TestCreateJob(t *testing.T) {
 	// Create a job belonging to the project we just created
 	jobCommitID := "deadbeef"
 	jobName := "jobname"
-	jobID, err := createJob(projectID, jobCommitID, jobName, conn)
+	jobID, err := conn.createJob(projectID, jobCommitID, jobName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,13 +84,13 @@ func TestCreateJob(t *testing.T) {
 	}
 
 	// Create a duplicate job (that is, the projectID, commitID and job's name already exist)
-	_, err = createJob(projectID, jobCommitID, jobName, conn)
+	_, err = conn.createJob(projectID, jobCommitID, jobName)
 	if err == nil {
 		t.Fatal("Expected error while creating duplicate job")
 	}
 
 	// Create a job for a projectID that doesn't exist, this should error
-	_, err = createJob(projectID+1, "cafebabe", "jobname", conn)
+	_, err = conn.createJob(projectID+1, "cafebabe", "jobname")
 	if err == nil {
 		t.Fatal("Expected an error while creating a job for a projectID that doesn't exist")
 	}
@@ -102,7 +101,7 @@ func TestFindJob(t *testing.T) {
 	projectName := "TestFindJob"
 	projectOwner := "bcd"
 
-	projectID, err := createProject(projectName, projectOwner, conn)
+	projectID, err := conn.createProject(projectName, projectOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,19 +109,19 @@ func TestFindJob(t *testing.T) {
 	// Search for a job that doesn't exist
 	commitID := "deadc0de"
 	jobName := "default"
-	id := findJobID(projectID, commitID, jobName, conn)
+	id := conn.findJobID(projectID, commitID, jobName)
 	if id != -1 {
 		t.Fatal("Expected ID -1 when searching for non-existent job")
 	}
 
 	// Create the project
-	createdID, err := createJob(projectID, commitID, jobName, conn)
+	createdID, err := conn.createJob(projectID, commitID, jobName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Make sure the IDs match
-	id = findJobID(projectID, commitID, jobName, conn)
+	id = conn.findJobID(projectID, commitID, jobName)
 	if id != createdID {
 		t.Fatalf("Expected same IDs when searching for newly created job, got %d and %d", id, createdID)
 	}
@@ -135,17 +134,17 @@ func TestCreateOutputWriter(t *testing.T) {
 	commitID := "00bab10c"
 	jobName := "default"
 
-	writer, err := CreateOutputWriter(projectName, projectOwner, commitID, jobName, conn)
+	writer, err := conn.CreateOutputWriter(projectName, projectOwner, commitID, jobName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Make sure the project and job are created
-	projectID := findProjectID(projectName, projectOwner, conn)
+	projectID := conn.findProjectID(projectName, projectOwner)
 	if projectID == -1 {
 		t.Fatal("Couldn't find project, even though it should have been created")
 	}
-	jobID := findJobID(projectID, commitID, jobName, conn)
+	jobID := conn.findJobID(projectID, commitID, jobName)
 	if jobID == -1 {
 		t.Fatal("Couldn't find job, even though it should have been created")
 	}
@@ -167,7 +166,7 @@ func TestCreateOutputWriter(t *testing.T) {
 	}
 
 	// Creating a second writer on the same job should be OK
-	_, err = CreateOutputWriter(projectName, projectOwner, commitID, jobName, conn)
+	_, err = conn.CreateOutputWriter(projectName, projectOwner, commitID, jobName)
 	if err != nil {
 		t.Fatal(err)
 	}

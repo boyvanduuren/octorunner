@@ -139,12 +139,12 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 	containerRunning := true
 
 	// if we have a connection to a db, log output
-	if persist.Connection != nil {
+	if persist.DBConn.Connection != nil {
 		// get a writer that writes to the Output table in our database
 		repoOwner := strings.Split(repoData["fullName"], "/")[0]
 		repoName := strings.Split(repoData["fullName"], "/")[1]
 		commitID := repoData["commitId"]
-		writer, err := persist.CreateOutputWriter(repoName, repoOwner, commitID, "default", persist.Connection)
+		writer, err := persist.DBConn.CreateOutputWriter(repoName, repoOwner, commitID, "default")
 		if err != nil {
 			return -1, err
 		}
