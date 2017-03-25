@@ -62,7 +62,7 @@ type hookPayload struct {
 // HandleWebhook is called when we receive a request on our listener and is responsible
 // for decoding the payload and passing it to the appropriate handler for that particular event.
 // If the received event is not supported we log an error and return without doing anything.
-func HandleWebhook(w http.ResponseWriter, r *http.Request) {
+func HandleWebhook(w http.ResponseWriter, r *http.Request, v url.Values) {
 	// Map Github webhook events to functions that handle them
 	supportedEvents := map[string]func(hookPayload){
 		"push": handlePush,

@@ -6,8 +6,12 @@ import (
 	"github.com/boyvanduuren/octorunner/lib/git"
 	"github.com/boyvanduuren/octorunner/lib/persist"
 	"github.com/spf13/viper"
-	"net/http"
 	"strings"
+	"github.com/boyvanduuren/octorunner/lib/webapi/controllers"
+	"github.com/boyvanduuren/octorunner/lib/webapi/app"
+	"github.com/goadesign/goa"
+	"github.com/goadesign/goa/middleware"
+	"github.com/goadesign/goa/logging/logrus"
 )
 
 const (
@@ -91,12 +95,30 @@ func main() {
 		git.Auth = auth.SimpleAuth{Store: repositories}
 	}
 
-	// Start listening for webhooks
-	listener := webServer + ":" + webPort
-	log.Info("Opening listener on " + listener + ", handling requests at /" + webPath)
-	http.HandleFunc("/"+webPath, git.HandleWebhook)
-	err = http.ListenAndServe(listener, nil)
-	if err != nil {
-		log.Fatal("Error while opening listener: ", err)
+	// Setup our webapi
+
+	// Create service
+	service := goa.New("octorunner")
+
+	// Mount middleware
+	service.Use(middleware.RequestID())
+	service.WithLogger(goalogrus.New(log.New()))
+	service.Use(middleware.LogRequest(true))
+	service.Use(middleware.ErrorHandler(service, true))
+	service.Use(middleware.Recover())
+
+	// Mount our Github payload handler
+	service.Mux.Handle("POST", "/" + webPath, git.HandleWebhook)
+
+	// Mount "job" controller
+	c := controllers.NewJobController(service)
+	app.MountJobController(service, c)
+	// Mount "project" controller
+	c2 := controllers.NewProjectController(service)
+	app.MountProjectController(service, c2)
+
+	// Start service
+	if err := service.ListenAndServe(webServer + ":" + webPort); err != nil {
+		service.LogError("startup", "err", err)
 	}
 }
