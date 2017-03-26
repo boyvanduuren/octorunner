@@ -7,7 +7,8 @@ import (
 )
 
 type Output struct {
-	Job uint64
+	ID int64
+	Job int64
 	Data string
 	Timestamp time.Time
 }
@@ -80,4 +81,27 @@ job string) (func(string, string) (int64, error), error) {
 		}
 		return outputID, nil
 	}, nil
+}
+
+func (db *DB) findAllOutputForJob(jobID int64) ([]*Output, error) {
+	var results []*Output
+
+	rows, err := db.Connection.Query("SELECT id(), data, timestamp FROM Output WHERE job = ?1", jobID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var (
+			id int64
+			data string
+			timestamp time.Time
+		)
+
+		rows.Scan(&id, &data, &timestamp)
+		results = append(results, &Output{ID: id, Job: jobID, Data: data, Timestamp: timestamp})
+	}
+
+	return results, nil
 }

@@ -73,3 +73,29 @@ func (db *DB) FindJobsForProject(projectID int64) ([]Job, error) {
 
 	return jobs, nil
 }
+
+// FindJobWithData finds a job belongingand returns it, with all the
+// Output data related to it already fetched.
+func (db *DB) FindJobWithData(jobID int64) (*Job, error) {
+	var commitID, job string
+
+	row := db.Connection.QueryRow("SELECT commitID, job FROM Jobs WHERE id() = ?1", jobID)
+	row.Scan(&commitID, &job)
+
+	if commitID == "" {
+		return nil, fmt.Errorf("Couldn't find project with ID %q", jobID)
+	}
+
+	data, err := db.findAllOutputForJob(jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Job{
+		ID: jobID,
+		Project: jobID,
+		CommitID: commitID,
+		Job: job,
+		Data: data,
+	}, nil
+}
