@@ -16,6 +16,12 @@
 			"revisionTime": "2016-12-02T02:35:07Z"
 		},
 		{
+			"checksumSHA1": "4Qg2FzSGISTC0qWcLcJXk2bx5GM=",
+			"path": "github.com/dimfeld/httppath",
+			"revision": "c8e499c3ef3c3e272ed8bdcc1ccf39f73c88debc",
+			"revisionTime": "2014-05-15T16:47:37Z"
+		},
+		{
 			"checksumSHA1": "ue2IHnE1QDXo+fN1TwZKpuYrZLU=",
 			"origin": "github.com/docker/docker/vendor/github.com/docker/distribution/digest",
 			"path": "github.com/docker/distribution/digest",
@@ -208,6 +214,84 @@
 			"revisionTime": "2016-10-26T20:31:22Z"
 		},
 		{
+			"checksumSHA1": "8WhY7hTOhFdvjHAiTAgfau61h8o=",
+			"path": "github.com/goadesign/goa",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "87UEPmP0ufhdwD8lWZHVhZY7yrY=",
+			"path": "github.com/goadesign/goa/client",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "P1d883R2c1LsSRgPokwHa4lLZh8=",
+			"path": "github.com/goadesign/goa/design",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "EtsVV0hAa8ZiWSQqD/4oHAX+Plk=",
+			"path": "github.com/goadesign/goa/design/apidsl",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "VPmyMylGqHGm42ZnGDGUl/KpgmM=",
+			"path": "github.com/goadesign/goa/dslengine",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "SMoKoX2d6U0Vav+mDFUPC79x2QI=",
+			"path": "github.com/goadesign/goa/goagen",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "rEuBEdq5WtB4aR85MyuNs6NHhGo=",
+			"path": "github.com/goadesign/goa/goagen/codegen",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "Y8JfU0Rf2e6jtpl8d9gUvYlv3z8=",
+			"path": "github.com/goadesign/goa/goagen/meta",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "1pi3YsaxPNS1gPMUdyy37XBHtFM=",
+			"path": "github.com/goadesign/goa/goagen/utils",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "bjImHuKENWkCCH3JKLUxnNTk7H4=",
+			"path": "github.com/goadesign/goa/goatest",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "zI0Dt5lDtTAWl+YlMMUWSPgMtW0=",
+			"path": "github.com/goadesign/goa/logging/logrus",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "BX8i+49imBjn0X51bdrCkFkR9gM=",
+			"path": "github.com/goadesign/goa/middleware",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
+			"checksumSHA1": "kF1sFFgtpeKLQ9PBdOog7jbAQUc=",
+			"path": "github.com/goadesign/goa/version",
+			"revision": "6392571f2790934f6a0619ac5efd190bde07d130",
+			"revisionTime": "2017-03-22T16:23:39Z"
+		},
+		{
 			"checksumSHA1": "vD9FH5z7uI/YlKDk8oZW7FhsnEY=",
 			"path": "github.com/google/go-github/github",
 			"revision": "466070b0580728e63bd1a415e0019639e55d7148",
@@ -280,6 +364,12 @@
 			"revisionTime": "2016-11-28T00:34:34Z"
 		},
 		{
+			"checksumSHA1": "N/uUbdbDaE3t6vhF2XV7zSSCXiU=",
+			"path": "github.com/manveru/faker",
+			"revision": "717f7cf83fb78669bfab612749c2e8ff63d5be11",
+			"revisionTime": "2016-04-19T07:20:36Z"
+		},
+		{
 			"checksumSHA1": "YTgVg6ylwLPnO8Sw2fDVMAt3n/E=",
 			"path": "github.com/mitchellh/mapstructure",
 			"revision": "bfdb1a85537d60bc7e954e600c250219ea497417",
@@ -337,6 +427,12 @@
 			"revisionTime": "2016-11-16T01:33:54Z"
 		},
 		{
+			"checksumSHA1": "4a9igbvJzlW/jJRUMv2xg59fg4o=",
+			"path": "github.com/spf13/cobra",
+			"revision": "7be4beda01ec05d0b93d80b3facd2b6f44080d94",
+			"revisionTime": "2017-03-14T17:12:53Z"
+		},
+		{
 			"checksumSHA1": "M6v7rwFodsBRcOT6HH3ppNdo0d4=",
 			"path": "github.com/spf13/jwalterweatherman",
 			"revision": "33c24e77fb80341fe7130ee7c594256ff08ccc46",
@@ -353,6 +449,12 @@
 			"path": "github.com/spf13/viper",
 			"revision": "5ed0fc31f7f453625df314d8e66b9791e8d13003",
 			"revisionTime": "2016-12-13T09:38:49Z"
+		},
+		{
+			"checksumSHA1": "ebzN0PX+Dwk4PTXo4Rov0ix8niM=",
+			"path": "github.com/zach-klippenstein/goregen",
+			"revision": "795b5e3961ea1912fde60af417ad85e86acc0d6a",
+			"revisionTime": "2016-03-03T16:20:51Z"
 		},
 		{
 			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
@@ -411,6 +513,12 @@
 			"path": "golang.org/x/text/unicode/norm",
 			"revision": "47a200a05c8b3fd1b698571caecbb68beb2611ec",
 			"revisionTime": "2016-11-30T21:25:21Z"
+		},
+		{
+			"checksumSHA1": "ikor+YKJu2eKwyFteBWhsb8IGy8=",
+			"path": "golang.org/x/tools/go/ast/astutil",
+			"revision": "c21bc47f893ee73c18dd2119bb8ff9a2b492c4c6",
+			"revisionTime": "2017-03-22T22:55:50Z"
 		},
 		{
 			"checksumSHA1": "21kDrz4DnDppRHgK7vVmOFwgcSQ=",
