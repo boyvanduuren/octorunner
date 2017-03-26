@@ -6,8 +6,8 @@ import (
 
 // Project struct, fairly self-explanatory.
 type Project struct {
-	ID int64
-	Name string
+	ID    int64
+	Name  string
 	Owner string
 }
 
@@ -75,8 +75,8 @@ func (db *DB) FindProjectByID(id int64) (*Project, error) {
 	}
 
 	return &Project{
-		ID: id,
-		Name: name,
+		ID:    id,
+		Name:  name,
 		Owner: owner,
 	}, nil
 }

@@ -3,11 +3,11 @@ package persist
 import "fmt"
 
 type Job struct {
-	ID int64
-	Project int64
+	ID       int64
+	Project  int64
 	CommitID string
-	Job string
-	Data []*Output
+	Job      string
+	Data     []*Output
 }
 
 func (db *DB) findJobID(projectID int64, commitID string, job string) int64 {
@@ -63,11 +63,11 @@ func (db *DB) FindJobsForProject(projectID int64) ([]Job, error) {
 
 		rows.Scan(&id, &commitID, &job)
 		jobs = append(jobs, Job{
-			ID: id,
-			Project: projectID,
+			ID:       id,
+			Project:  projectID,
 			CommitID: commitID,
-			Job: job,
-			Data: nil,
+			Job:      job,
+			Data:     nil,
 		})
 	}
 
@@ -92,11 +92,11 @@ func (db *DB) FindJobWithData(jobID int64) (*Job, error) {
 	}
 
 	return &Job{
-		ID: jobID,
-		Project: jobID,
+		ID:       jobID,
+		Project:  jobID,
 		CommitID: commitID,
-		Job: job,
-		Data: data,
+		Job:      job,
+		Data:     data,
 	}, nil
 }
 

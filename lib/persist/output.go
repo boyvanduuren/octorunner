@@ -2,14 +2,14 @@ package persist
 
 import (
 	"fmt"
-	"time"
 	log "github.com/Sirupsen/logrus"
+	"time"
 )
 
 type Output struct {
-	ID int64
-	Job int64
-	Data string
+	ID        int64
+	Job       int64
+	Data      string
 	Timestamp time.Time
 }
 
@@ -44,9 +44,9 @@ func (db *DB) createOutput(jobID int64, data, date string) (int64, error) {
 CreateOutputWriter returns a function that can be used to write to the "Output" table. That table is used
 to write test output to. Test output belongs to a certain job, which in turn belongs to a project. Before
 returning the writer we make sure these tuples exist or are created.
- */
+*/
 func (db *DB) CreateOutputWriter(projectName string, projectOwner string, commitID string,
-job string) (func(string, string) (int64, error), error) {
+	job string) (func(string, string) (int64, error), error) {
 	var err error
 	// Get the ID of this project
 	log.Debugf("Querying for project ID of project with name %q and owner %q", projectName, projectOwner)
@@ -94,8 +94,8 @@ func (db *DB) findAllOutputForJob(jobID int64) ([]*Output, error) {
 
 	for rows.Next() {
 		var (
-			id int64
-			data string
+			id        int64
+			data      string
 			timestamp time.Time
 		)
 

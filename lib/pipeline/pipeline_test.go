@@ -348,7 +348,7 @@ func (nopCloser) Close() error {
 }
 
 func (client MockPipelineExecutionClient) ContainerLogs(ctx context.Context, container string, options types.ContainerLogsOptions) (io.ReadCloser, error) {
-	return ioutil.NopCloser(nopCloser{bytes.NewBufferString("")} ), nil
+	return ioutil.NopCloser(nopCloser{bytes.NewBufferString("")}), nil
 }
 
 func TestPipelineExecute(t *testing.T) {

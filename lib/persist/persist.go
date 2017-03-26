@@ -15,7 +15,7 @@ var DBConn DB
 
 /*
 OpenDatabase opens a QL embedded database connection to a db at a certain path.
- */
+*/
 func OpenDatabase(path string, connectionPtr *DB) error {
 	ql.RegisterDriver()
 	db, err := sql.Open("ql", path)
@@ -66,4 +66,3 @@ func (db *DB) initializeDatabase() error {
 
 	return err
 }
-

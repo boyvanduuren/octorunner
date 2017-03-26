@@ -5,13 +5,13 @@ import (
 	"github.com/boyvanduuren/octorunner/lib/auth"
 	"github.com/boyvanduuren/octorunner/lib/git"
 	"github.com/boyvanduuren/octorunner/lib/persist"
+	"github.com/boyvanduuren/octorunner/lib/webapi/app"
+	"github.com/boyvanduuren/octorunner/lib/webapi/controllers"
+	"github.com/goadesign/goa"
+	"github.com/goadesign/goa/logging/logrus"
+	"github.com/goadesign/goa/middleware"
 	"github.com/spf13/viper"
 	"strings"
-	"github.com/boyvanduuren/octorunner/lib/webapi/controllers"
-	"github.com/boyvanduuren/octorunner/lib/webapi/app"
-	"github.com/goadesign/goa"
-	"github.com/goadesign/goa/middleware"
-	"github.com/goadesign/goa/logging/logrus"
 )
 
 const (
@@ -108,7 +108,7 @@ func main() {
 	service.Use(middleware.Recover())
 
 	// Mount our Github payload handler
-	service.Mux.Handle("POST", "/" + webPath, git.HandleWebhook)
+	service.Mux.Handle("POST", "/"+webPath, git.HandleWebhook)
 
 	// Mount "job" controller
 	c := controllers.NewJobController(service)
