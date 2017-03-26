@@ -4,6 +4,7 @@ import (
 	"github.com/boyvanduuren/octorunner/lib/webapi/app"
 	"github.com/goadesign/goa"
 	"github.com/boyvanduuren/octorunner/lib/persist"
+	"github.com/goadesign/goa/logging/logrus"
 )
 
 // ProjectController implements the project resource.
@@ -21,10 +22,24 @@ func (c *ProjectController) Jobs(ctx *app.JobsProjectContext) error {
 	// ProjectController_Jobs: start_implement
 
 	// Put your logic here
+	jobs, err := persist.DBConn.FindJobsForProject(int64(ctx.ProjectID))
+	if err != nil {
+		goalogrus.Entry(ctx).Errorf("While finding jobs for project %q: %q", ctx.ProjectID, err)
+		return ctx.NotFound()
+	}
 
+	jobCollection := make(app.OctorunnerJobLightCollection, len(jobs))
+	for i, job := range jobs {
+		jobCollection[i] = &app.OctorunnerJobLight{
+			ID: int(job.ID),
+			CommitID: job.CommitID,
+			Project: int(job.Project),
+			Job: job.Job,
+		}
+	}
+
+	return ctx.OKLight(jobCollection)
 	// ProjectController_Jobs: end_implement
-	res := app.OctorunnerJobCollection{}
-	return ctx.OK(res)
 }
 
 // List runs the list action.
@@ -34,7 +49,7 @@ func (c *ProjectController) List(ctx *app.ListProjectContext) error {
 	// Put your logic here
 	projects, err := persist.DBConn.FindAllProjects()
 	if err != nil {
-		//todo: log error
+		goalogrus.Entry(ctx).Errorf("While querying all projects: %q", err)
 		res := app.OctorunnerProjectCollection{}
 		return ctx.OK(res)
 	}
@@ -59,7 +74,7 @@ func (c *ProjectController) Show(ctx *app.ShowProjectContext) error {
 	// Put your logic here
 	res, err := persist.DBConn.FindProjectByID(int64(ctx.ProjectID))
 	if err != nil {
-		// todo: log error
+		goalogrus.Entry(ctx).Errorf("While querying project %q: %q", ctx.ProjectID, err)
 		return ctx.NotFound()
 	}
 	foundProject := &app.OctorunnerProject{

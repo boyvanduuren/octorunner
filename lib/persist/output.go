@@ -6,6 +6,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+type Output struct {
+	Job uint64
+	Data string
+	Timestamp time.Time
+}
+
 func (db *DB) createOutput(jobID int64, data, date string) (int64, error) {
 	// Make sure we refer to an existing project
 	rows, err := db.Connection.Query("SELECT id() FROM Jobs WHERE id() = ?1", jobID)

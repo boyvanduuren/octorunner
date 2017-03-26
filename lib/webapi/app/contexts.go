@@ -130,15 +130,6 @@ func NewJobsProjectContext(ctx context.Context, r *http.Request, service *goa.Se
 	return &rctx, err
 }
 
-// OK sends a HTTP response with status code 200.
-func (ctx *JobsProjectContext) OK(r OctorunnerJobCollection) error {
-	ctx.ResponseData.Header().Set("Content-Type", "application/vnd.octorunner.job+json; type=collection")
-	if r == nil {
-		r = OctorunnerJobCollection{}
-	}
-	return ctx.ResponseData.Service.Send(ctx.Context, 200, r)
-}
-
 // OKLight sends a HTTP response with status code 200.
 func (ctx *JobsProjectContext) OKLight(r OctorunnerJobLightCollection) error {
 	ctx.ResponseData.Header().Set("Content-Type", "application/vnd.octorunner.job+json; type=collection")

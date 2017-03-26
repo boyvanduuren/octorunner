@@ -31,7 +31,11 @@ var _ = Resource("project", func() {
 		Params(func() {
 			Param("projectID", Integer, "Project ID")
 		})
-		Response(OK, CollectionOf(Job))
+		// We don't want to eagerly fetch all data of every job, so we return
+		// a collection of the light Job view.
+		Response(OK, func() {
+			Media(CollectionOf(Job), "light")
+		})
 		Response(NotFound)
 	})
 

@@ -2,6 +2,14 @@ package persist
 
 import "fmt"
 
+type Job struct {
+	ID int64
+	Project int64
+	CommitID string
+	Job string
+	Data []*Output
+}
+
 func (db *DB) findJobID(projectID int64, commitID string, job string) int64 {
 	var id *int64
 	_ = db.Connection.QueryRow("SELECT id() FROM Jobs WHERE project = ?1 "+
@@ -37,4 +45,31 @@ func (db *DB) createJob(projectID int64, commitID string, job string) (int64, er
 	}
 
 	return id, nil
+}
+
+// Find all jobs that belong to a specific project. This doesn't query the data belonging to every job.
+// Used for the webapi get "api/projects/:ProjectID/jobs".
+func (db *DB) FindJobsForProject(projectID int64) ([]Job, error) {
+	var jobs []Job
+
+	rows, err := db.Connection.Query("SELECT id(), commitID, job FROM Jobs WHERE project = ?1", projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var id int64
+		var commitID, job string
+
+		rows.Scan(&id, &commitID, &job)
+		jobs = append(jobs, Job{
+			ID: id,
+			Project: projectID,
+			CommitID: commitID,
+			Job: job,
+			Data: nil,
+		})
+	}
+
+	return jobs, nil
 }
