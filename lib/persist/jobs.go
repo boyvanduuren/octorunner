@@ -99,3 +99,13 @@ func (db *DB) FindJobWithData(jobID int64) (*Job, error) {
 		Data: data,
 	}, nil
 }
+
+// GetLatestJobID returns the latest jobID. The return value will be < 1 if no job was found.
+func (db *DB) GetLatestJobID() int64 {
+	var jobID int64
+
+	row := db.Connection.QueryRow("SELECT id() FROM Jobs ORDER BY id() DESC LIMIT 1")
+	row.Scan(&jobID)
+
+	return jobID
+}

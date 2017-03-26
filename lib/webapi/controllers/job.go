@@ -17,6 +17,28 @@ func NewJobController(service *goa.Service) *JobController {
 	return &JobController{Controller: service.NewController("JobController")}
 }
 
+func ToProjectMedia(job *persist.Job) (*app.OctorunnerJob) {
+	dataCollection := make([]*app.OctorunnerOutput, len(job.Data))
+	for i, output := range job.Data {
+		outputID := new(int)
+		*outputID = int(output.ID)
+		dataCollection[i] = &app.OctorunnerOutput{
+			ID: outputID,
+			Data: &output.Data,
+			Timestamp: &output.Timestamp,
+		}
+	}
+
+	return &app.OctorunnerJob{
+		ID: int(job.ID),
+		CommitID: job.CommitID,
+		Project: int(job.Project),
+		Job: job.Job,
+		Data: dataCollection,
+
+	}
+}
+
 // Show runs the show action.
 func (c *JobController) Show(ctx *app.ShowJobContext) error {
 	// JobController_Show: start_implement
@@ -28,28 +50,7 @@ func (c *JobController) Show(ctx *app.ShowJobContext) error {
 		return ctx.NotFound()
 	}
 
-
-	dataCollection := make([]*app.OctorunnerOutput, len(res.Data))
-	for i, output := range res.Data {
-		outputID := new(int)
-		*outputID = int(output.ID)
-		dataCollection[i] = &app.OctorunnerOutput{
-			ID: outputID,
-			Data: &output.Data,
-			Timestamp: &output.Timestamp,
-		}
-	}
-
-	foundProject := &app.OctorunnerJob{
-		ID: int(res.ID),
-		CommitID: res.CommitID,
-		Project: int(res.Project),
-		Job: res.Job,
-		Data: dataCollection,
-
-	}
-
-	return ctx.OK(foundProject)
+	return ctx.OK(ToProjectMedia(res))
 	// JobController_Show: end_implement
 }
 
@@ -58,8 +59,17 @@ func (c *JobController) ShowLatest(ctx *app.ShowLatestJobContext) error {
 	// JobController_ShowLatest: start_implement
 
 	// Put your logic here
+	latestJobID := persist.DBConn.GetLatestJobID()
+	if latestJobID < 1 {
+		return ctx.NotFound()
+	}
 
+	res, err := persist.DBConn.FindJobWithData(latestJobID)
+	if err != nil {
+		goalogrus.Entry(ctx).Errorf("While querying latest job %q: %q", int(latestJobID), err)
+		return ctx.NotFound()
+	}
+
+	return ctx.OK(ToProjectMedia(res))
 	// JobController_ShowLatest: end_implement
-	res := &app.OctorunnerJob{}
-	return ctx.OK(res)
 }
