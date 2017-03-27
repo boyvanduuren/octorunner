@@ -32,9 +32,12 @@ func (c *ProjectController) Jobs(ctx *app.JobsProjectContext) error {
 	for i, job := range jobs {
 		jobCollection[i] = &app.OctorunnerJobLight{
 			ID: int(job.ID),
+			Iteration: int(job.Iteration),
 			CommitID: job.CommitID,
 			Project: int(job.Project),
 			Job: job.Job,
+			Status: job.Status,
+			Extra: job.Extra,
 		}
 	}
 

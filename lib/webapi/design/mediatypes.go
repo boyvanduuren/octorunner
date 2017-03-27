@@ -36,6 +36,9 @@ var Job = MediaType("application/vnd.octorunner.job+json", func() {
 		Attribute("id", Integer, "Unique job ID", func() {
 			Example(1)
 		})
+		Attribute("iteration", Integer, "The iteration ID of this job. A job might be ran multiple times.", func() {
+			Example(5)
+		})
 		Attribute("project", Integer, "The project this job belongs to", func() {
 			Example(1)
 		})
@@ -45,21 +48,34 @@ var Job = MediaType("application/vnd.octorunner.job+json", func() {
 		Attribute("job", String, "The name of the job", func() {
 			Example("default")
 		})
+		Attribute("status", String, "The status of the job", func() {
+			Example("running")
+			Enum("running", "done", "error")
+		})
+		Attribute("extra", String, "Extra information, this might contain error information", func() {
+			Example("Some error message")
+		})
 		Attribute("data", ArrayOf(Output))
-		Required("id", "project", "commitID", "job")
+		Required("id", "project", "commitID", "job", "iteration", "status", "extra")
 	})
 	View("default", func() {
 		Attribute("id")
+		Attribute("iteration")
 		Attribute("project")
 		Attribute("commitID")
 		Attribute("job")
+		Attribute("status")
+		Attribute("extra")
 		Attribute("data")
 	})
 	View("light", func() {
 		Attribute("id")
+		Attribute("iteration")
 		Attribute("project")
 		Attribute("commitID")
 		Attribute("job")
+		Attribute("status")
+		Attribute("extra")
 	})
 })
 

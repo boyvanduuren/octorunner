@@ -31,9 +31,12 @@ func ToProjectMedia(job *persist.Job) (*app.OctorunnerJob) {
 
 	return &app.OctorunnerJob{
 		ID: int(job.ID),
+		Iteration: int(job.Iteration),
 		CommitID: job.CommitID,
 		Project: int(job.Project),
 		Job: job.Job,
+		Status: job.Status,
+		Extra: job.Extra,
 		Data: dataCollection,
 
 	}

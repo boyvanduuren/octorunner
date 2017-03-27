@@ -7,6 +7,7 @@ import (
 
 type Job struct {
 	ID       int64
+	Iteration int64
 	Project  int64
 	CommitID string
 	Job      string
@@ -124,35 +125,40 @@ func (db *DB) UpdateJobStatus(jobID int64, status JobStatus, extra string) error
 func (db *DB) FindJobsForProject(projectID int64) ([]Job, error) {
 	var jobs []Job
 
-	rows, err := db.Connection.Query("SELECT id(), commitID, job FROM Jobs WHERE project = ?1", projectID)
+	rows, err := db.Connection.Query("SELECT id(), iteration, commitID, job, status, extra " +
+		"FROM Jobs WHERE project = ?1", projectID)
 	if err != nil {
 		return nil, err
 	}
 
 	for rows.Next() {
-		var id int64
-		var commitID, job string
+		var id, iteration int64
+		var commitID, job, status, extra string
 
-		rows.Scan(&id, &commitID, &job)
+		rows.Scan(&id, &iteration, &commitID, &job, &status, &extra)
 		jobs = append(jobs, Job{
 			ID:       id,
+			Iteration: iteration,
 			Project:  projectID,
 			CommitID: commitID,
 			Job:      job,
 			Data:     nil,
+			Status: status,
+			Extra: extra,
 		})
 	}
 
 	return jobs, nil
 }
 
-// FindJobWithData finds a job belongingand returns it, with all the
+// FindJobWithData finds a job and returns it, with all the
 // Output data related to it already fetched.
 func (db *DB) FindJobWithData(jobID int64) (*Job, error) {
+	var iteration int64
 	var commitID, job, status, extra string
 
-	row := db.Connection.QueryRow("SELECT commitID, job, status, extra FROM Jobs WHERE id() = ?1", jobID)
-	row.Scan(&commitID, &job, &status, &extra)
+	row := db.Connection.QueryRow("SELECT iteration, commitID, job, status, extra FROM Jobs WHERE id() = ?1", jobID)
+	row.Scan(&iteration, &commitID, &job, &status, &extra)
 
 	if commitID == "" {
 		return nil, fmt.Errorf("Couldn't find project with ID %q", jobID)
@@ -165,6 +171,7 @@ func (db *DB) FindJobWithData(jobID int64) (*Job, error) {
 
 	return &Job{
 		ID:       jobID,
+		Iteration: iteration,
 		Project:  jobID,
 		CommitID: commitID,
 		Job:      job,

@@ -22,12 +22,18 @@ type OctorunnerJob struct {
 	// The git commit ID specific to this job
 	CommitID string              `form:"commitID" json:"commitID" xml:"commitID"`
 	Data     []*OctorunnerOutput `form:"data,omitempty" json:"data,omitempty" xml:"data,omitempty"`
+	// Extra information, this might contain error information
+	Extra string `form:"extra" json:"extra" xml:"extra"`
 	// Unique job ID
 	ID int `form:"id" json:"id" xml:"id"`
+	// The iteration ID of this job. A job might be ran multiple times.
+	Iteration int `form:"iteration" json:"iteration" xml:"iteration"`
 	// The name of the job
 	Job string `form:"job" json:"job" xml:"job"`
 	// The project this job belongs to
 	Project int `form:"project" json:"project" xml:"project"`
+	// The status of the job
+	Status string `form:"status" json:"status" xml:"status"`
 }
 
 // Validate validates the OctorunnerJob media type instance.
@@ -39,6 +45,16 @@ func (mt *OctorunnerJob) Validate() (err error) {
 	if mt.Job == "" {
 		err = goa.MergeErrors(err, goa.MissingAttributeError(`response`, "job"))
 	}
+
+	if mt.Status == "" {
+		err = goa.MergeErrors(err, goa.MissingAttributeError(`response`, "status"))
+	}
+	if mt.Extra == "" {
+		err = goa.MergeErrors(err, goa.MissingAttributeError(`response`, "extra"))
+	}
+	if !(mt.Status == "running" || mt.Status == "done" || mt.Status == "error") {
+		err = goa.MergeErrors(err, goa.InvalidEnumValueError(`response.status`, mt.Status, []interface{}{"running", "done", "error"}))
+	}
 	return
 }
 
@@ -48,12 +64,18 @@ func (mt *OctorunnerJob) Validate() (err error) {
 type OctorunnerJobLight struct {
 	// The git commit ID specific to this job
 	CommitID string `form:"commitID" json:"commitID" xml:"commitID"`
+	// Extra information, this might contain error information
+	Extra string `form:"extra" json:"extra" xml:"extra"`
 	// Unique job ID
 	ID int `form:"id" json:"id" xml:"id"`
+	// The iteration ID of this job. A job might be ran multiple times.
+	Iteration int `form:"iteration" json:"iteration" xml:"iteration"`
 	// The name of the job
 	Job string `form:"job" json:"job" xml:"job"`
 	// The project this job belongs to
 	Project int `form:"project" json:"project" xml:"project"`
+	// The status of the job
+	Status string `form:"status" json:"status" xml:"status"`
 }
 
 // Validate validates the OctorunnerJobLight media type instance.
@@ -64,6 +86,16 @@ func (mt *OctorunnerJobLight) Validate() (err error) {
 	}
 	if mt.Job == "" {
 		err = goa.MergeErrors(err, goa.MissingAttributeError(`response`, "job"))
+	}
+
+	if mt.Status == "" {
+		err = goa.MergeErrors(err, goa.MissingAttributeError(`response`, "status"))
+	}
+	if mt.Extra == "" {
+		err = goa.MergeErrors(err, goa.MissingAttributeError(`response`, "extra"))
+	}
+	if !(mt.Status == "running" || mt.Status == "done" || mt.Status == "error") {
+		err = goa.MergeErrors(err, goa.InvalidEnumValueError(`response.status`, mt.Status, []interface{}{"running", "done", "error"}))
 	}
 	return
 }
