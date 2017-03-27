@@ -84,9 +84,10 @@ func TestCreateJob(t *testing.T) {
 	}
 
 	// Create a duplicate job (that is, the projectID, commitID and job's name already exist)
+	// This shouldn't error, because a new iteration ID is generated for this job.
 	_, err = conn.createJob(projectID, jobCommitID, jobName)
-	if err == nil {
-		t.Fatal("Expected error while creating duplicate job")
+	if err != nil {
+		t.Fatalf("Unexpected error while creating duplicate job: %q", err)
 	}
 
 	// Create a job for a projectID that doesn't exist, this should error
@@ -109,21 +110,46 @@ func TestFindJob(t *testing.T) {
 	// Search for a job that doesn't exist
 	commitID := "deadc0de"
 	jobName := "default"
-	id := conn.findJobID(projectID, commitID, jobName)
+	id := conn.findJobID(projectID, commitID, jobName, 1)
 	if id != -1 {
 		t.Fatal("Expected ID -1 when searching for non-existent job")
 	}
 
-	// Create the project
-	createdID, err := conn.createJob(projectID, commitID, jobName)
+	// Create the job
+	createdID_01, err := conn.createJob(projectID, commitID, jobName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Make sure the IDs match
-	id = conn.findJobID(projectID, commitID, jobName)
-	if id != createdID {
-		t.Fatalf("Expected same IDs when searching for newly created job, got %d and %d", id, createdID)
+	id = conn.findJobID(projectID, commitID, jobName, 1)
+	if id != createdID_01 {
+		t.Fatalf("Expected same IDs when searching for newly created job, got %d and %d", id, createdID_01)
+	}
+
+	// Create a new iteration of the job
+	createdID_02, err := conn.createJob(projectID, commitID, jobName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id = conn.findJobID(projectID, commitID, jobName, 2)
+	if id != createdID_02 {
+		t.Fatalf("Expected same IDs when searching for newly created job, got %d and %d", id, createdID_02)
+	}
+
+	ids, err := conn.findJobIDs(projectID, commitID, jobName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) != 2 {
+		t.Fatalf("Error while retrieving created job IDs, expected array of size 2, got %d", len(ids))
+	}
+	if ids[0] != createdID_01 {
+		t.Fatalf("Expected same IDs when searching for job IDs, got %d and %d", ids[0], createdID_01)
+	}
+	if ids[1] != createdID_02 {
+		t.Fatalf("Expected same IDs when searching for job IDs, got %d and %d", ids[1], createdID_02)
 	}
 
 }
@@ -144,8 +170,8 @@ func TestCreateOutputWriter(t *testing.T) {
 	if projectID == -1 {
 		t.Fatal("Couldn't find project, even though it should have been created")
 	}
-	jobID := conn.findJobID(projectID, commitID, jobName)
-	if jobID == -1 {
+	jobIDs, err := conn.findJobIDs(projectID, commitID, jobName)
+	if len(jobIDs) == 0 {
 		t.Fatal("Couldn't find job, even though it should have been created")
 	}
 

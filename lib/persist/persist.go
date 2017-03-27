@@ -42,12 +42,13 @@ func (db *DB) initializeDatabase() error {
 
 	creationQueries := []string{
 		"CREATE TABLE IF NOT EXISTS Projects (name string, owner string)",
-		"CREATE TABLE IF NOT EXISTS Jobs (project int, commitID string, job string)",
+		"CREATE TABLE IF NOT EXISTS Jobs (project int, commitID string, job string, status string," +
+			"extra string, iteration int)",
 		"CREATE TABLE IF NOT EXISTS Output (job int, data string, timestamp time)",
 		"CREATE UNIQUE INDEX IF NOT EXISTS ProjectsID ON Projects (id())",
 		"CREATE UNIQUE INDEX IF NOT EXISTS ProjectRepository ON Projects (name, owner)",
 		"CREATE UNIQUE INDEX IF NOT EXISTS JobsID ON Jobs (id())",
-		"CREATE UNIQUE INDEX IF NOT EXISTS JobsProjectCommit ON Jobs (project, commitID, job)",
+		"CREATE UNIQUE INDEX IF NOT EXISTS JobsProjectCommit ON Jobs (project, commitID, job, iteration)",
 		"CREATE UNIQUE INDEX IF NOT EXISTS OutputID ON Output (id())",
 		"CREATE INDEX IF NOT EXISTS OutputJob ON Output (job)",
 	}

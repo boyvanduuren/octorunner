@@ -1,6 +1,9 @@
 package persist
 
-import "fmt"
+import (
+	"fmt"
+	"database/sql"
+)
 
 type Job struct {
 	ID       int64
@@ -10,15 +13,34 @@ type Job struct {
 	Data     []*Output
 }
 
-func (db *DB) findJobID(projectID int64, commitID string, job string) int64 {
+func (db *DB) findJobID(projectID int64, commitID string, job string, iteration int64) int64 {
 	var id *int64
 	_ = db.Connection.QueryRow("SELECT id() FROM Jobs WHERE project = ?1 "+
-		"AND commitID = ?2 AND job = ?3", projectID, commitID, job).Scan(&id)
+		"AND commitID = ?2 AND job = ?3 AND iteration = ?4",
+		projectID, commitID, job, iteration).Scan(&id)
 
 	if id == nil {
 		return -1
 	}
 	return *id
+}
+
+func (db *DB) findJobIDs(projectID int64, commitID string, job string) ([]int64, error) {
+	var IDs []int64
+	rows, err := db.Connection.Query("SELECT id() FROM Jobs WHERE project = ?1 "+
+		"AND commitID = ?2 AND job = ?3 ORDER BY id() ASC",
+		projectID, commitID, job)
+	if err != nil {
+		return []int64{}, err
+	}
+
+	for rows.Next() {
+		var id int64
+		rows.Scan(&id)
+		IDs = append(IDs, id)
+	}
+
+	return IDs, nil
 }
 
 func (db *DB) createJob(projectID int64, commitID string, job string) (int64, error) {
@@ -28,12 +50,24 @@ func (db *DB) createJob(projectID int64, commitID string, job string) (int64, er
 		return -1, fmt.Errorf("Cannot create job for project with ID %d as it doesn't exist", projectID)
 	}
 
+	// Retrieve the latest iteration ID of this job, which might not exist
+	var latestJobIteration int64
+	row := db.Connection.QueryRow("SELECT iteration FROM Jobs WHERE project = ?1", projectID)
+	err = row.Scan(&latestJobIteration)
+	if err == sql.ErrNoRows {
+		latestJobIteration = 0
+	} else if err != nil {
+		return -1, err
+	}
+
+
 	tx, err := db.Connection.Begin()
 	if err != nil {
 		return -1, err
 	}
 
-	res, err := tx.Exec("INSERT INTO Jobs VALUES (?1, ?2, ?3)", projectID, commitID, job)
+	res, err := tx.Exec("INSERT INTO Jobs (project, commitID, job, status, iteration)" +
+		" VALUES (?1, ?2, ?3, ?4, ?5)", projectID, commitID, job, "running", latestJobIteration+1)
 	tx.Commit()
 	if err != nil {
 		return -1, err
