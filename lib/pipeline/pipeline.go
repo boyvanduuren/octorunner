@@ -139,37 +139,51 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 	containerRunning := true
 
 	// if we have a connection to a db, log output
+	var jobID int64
 	if persist.DBConn.Connection != nil {
 		// get a writer that writes to the Output table in our database
 		repoOwner := strings.Split(repoData["fullName"], "/")[0]
 		repoName := strings.Split(repoData["fullName"], "/")[1]
 		commitID := repoData["commitId"]
-		writer, err := persist.DBConn.CreateOutputWriter(repoName, repoOwner, commitID, "default")
+		writer, job, err := persist.DBConn.CreateOutputWriter(repoName, repoOwner, commitID, "default")
 		if err != nil {
 			return -1, err
 		}
+		jobID = job
+		// start a goroutine that logs output from the container
 		go logOutput(ctx, cli, containerID, writer, &containerRunning)
+	} else {
+		return -1, fmt.Errorf("Not connected to database")
 	}
 
-	// start a goroutine that logs output from the container
-
 	// block until the container is done
-	cli.ContainerWait(ctx, containerID)
+	_, err = cli.ContainerWait(ctx, containerID)
+	if err != nil {
+		formatted_err := fmt.Errorf("Error while waiting for container to finish: %q", err)
+		persist.DBConn.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
+		return -1, formatted_err
+	}
 	// signal the logOutput goroutine to stop
 	containerRunning = false
 
 	// inspect the finished container so we can get the exitcode
 	inspectData, err := cli.ContainerInspect(ctx, containerID)
 	if err != nil {
-		return -1, fmt.Errorf("Error while inspecting container: %q", err)
+		formatted_err := fmt.Errorf("Error while inspecting container: %q", err)
+		persist.DBConn.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
+		return -1, formatted_err
 	}
 	log.Infof("Container \"%s\" done, exit code: %d", containerID, inspectData.State.ExitCode)
 
 	log.Debugf("Removing container \"%s\"", containerID)
 	err = cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{RemoveVolumes: true})
 	if err != nil {
-		return -1, fmt.Errorf("Error while removing container: %q", err)
+		formatted_err := fmt.Errorf("Error while removing container: %q", err)
+		persist.DBConn.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
+		return -1, formatted_err
 	}
+	// Set job status to done
+	persist.DBConn.UpdateJobStatus(jobID, persist.STATUS_DONE, "")
 
 	return inspectData.State.ExitCode, nil
 }

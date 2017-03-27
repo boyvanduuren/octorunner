@@ -44,9 +44,10 @@ func (db *DB) createOutput(jobID int64, data, date string) (int64, error) {
 CreateOutputWriter returns a function that can be used to write to the "Output" table. That table is used
 to write test output to. Test output belongs to a certain job, which in turn belongs to a project. Before
 returning the writer we make sure these tuples exist or are created.
+Returns the writer function, the job ID and an error in case anything goes wrong.
 */
 func (db *DB) CreateOutputWriter(projectName string, projectOwner string, commitID string,
-	job string) (func(string, string) (int64, error), error) {
+	job string) (func(string, string) (int64, error), int64, error) {
 	var err error
 	// Get the ID of this project
 	log.Debugf("Querying for project ID of project with name %q and owner %q", projectName, projectOwner)
@@ -57,7 +58,7 @@ func (db *DB) CreateOutputWriter(projectName string, projectOwner string, commit
 		log.Debugf("Project not found, creating")
 		projectID, err = db.createProject(projectName, projectOwner)
 		if err != nil {
-			return nil, err
+			return nil, -1, err
 		}
 	}
 	log.Debugf("Project has ID %d", projectID)
@@ -65,14 +66,14 @@ func (db *DB) CreateOutputWriter(projectName string, projectOwner string, commit
 	jobIDs, err := db.findJobIDs(projectID, commitID, job)
 	var jobID int64
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 	if len(jobIDs) == 0 {
 		// Job isn't known in the database, so create it
 		log.Debugf("Job not found, creating")
 		jobID, err = db.createJob(projectID, commitID, job)
 		if err != nil {
-			return nil, err
+			return nil, -1, err
 		}
 	}
 	log.Debugf("Job has ID %d", jobID)
@@ -84,7 +85,7 @@ func (db *DB) CreateOutputWriter(projectName string, projectOwner string, commit
 			return -1, err
 		}
 		return outputID, nil
-	}, nil
+	}, jobID, nil
 }
 
 func (db *DB) findAllOutputForJob(jobID int64) ([]*Output, error) {

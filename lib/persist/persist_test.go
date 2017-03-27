@@ -97,6 +97,45 @@ func TestCreateJob(t *testing.T) {
 	}
 
 }
+
+func TestUpdateJob(t *testing.T) {
+	// We should first create a project
+	projectName := "TestUpdateJob"
+	projectOwner := "bcd"
+
+	projectID, err := conn.createProject(projectName, projectOwner)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a job belonging to the project we just created
+	jobCommitID := "deadbeef"
+	jobName := "jobname"
+	jobID, err := conn.createJob(projectID, jobCommitID, jobName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jobID < 1 {
+		t.Fatalf("Unexpected id: %d", jobID)
+	}
+
+	err = conn.UpdateJobStatus(jobID, STATUS_DONE, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	job, err := conn.FindJobWithData(jobID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Status != statusToString(STATUS_DONE) {
+		t.Fatalf("Expected job status %q, got %q", job.Status, statusToString(STATUS_DONE))
+	}
+	if job.Extra != "" {
+		t.Fatalf("Expected job status to be empty, but it was %q", job.Extra)
+	}
+}
+
 func TestFindJob(t *testing.T) {
 	// We should first create a project
 	projectName := "TestFindJob"
@@ -160,7 +199,7 @@ func TestCreateOutputWriter(t *testing.T) {
 	commitID := "00bab10c"
 	jobName := "default"
 
-	writer, err := conn.CreateOutputWriter(projectName, projectOwner, commitID, jobName)
+	writer, _, err := conn.CreateOutputWriter(projectName, projectOwner, commitID, jobName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +231,7 @@ func TestCreateOutputWriter(t *testing.T) {
 	}
 
 	// Creating a second writer on the same job should be OK
-	_, err = conn.CreateOutputWriter(projectName, projectOwner, commitID, jobName)
+	_, _, err = conn.CreateOutputWriter(projectName, projectOwner, commitID, jobName)
 	if err != nil {
 		t.Fatal(err)
 	}

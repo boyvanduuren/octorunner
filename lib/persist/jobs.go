@@ -10,7 +10,28 @@ type Job struct {
 	Project  int64
 	CommitID string
 	Job      string
+	Status string
+	Extra string
 	Data     []*Output
+}
+
+type JobStatus int
+const (
+	STATUS_DONE JobStatus = iota
+	STATUS_RUNNING
+	STATUS_ERROR
+)
+func statusToString(status JobStatus) string {
+	var statusText string
+	switch status {
+	case STATUS_DONE:
+		statusText = "done"
+	case STATUS_RUNNING:
+		statusText = "running"
+	case STATUS_ERROR:
+		statusText = "error"
+	}
+	return statusText
 }
 
 func (db *DB) findJobID(projectID int64, commitID string, job string, iteration int64) int64 {
@@ -81,6 +102,23 @@ func (db *DB) createJob(projectID int64, commitID string, job string) (int64, er
 	return id, nil
 }
 
+// UpdateJobStatus sets the status of a job and allows for some extra information to be passed as string.
+func (db *DB) UpdateJobStatus(jobID int64, status JobStatus, extra string) error {
+	tx, err := db.Connection.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("UPDATE Jobs SET status = ?1, extra = ?2 WHERE id() = ?3",
+		statusToString(status), extra, jobID)
+	tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Find all jobs that belong to a specific project. This doesn't query the data belonging to every job.
 // Used for the webapi get "api/projects/:ProjectID/jobs".
 func (db *DB) FindJobsForProject(projectID int64) ([]Job, error) {
@@ -111,10 +149,10 @@ func (db *DB) FindJobsForProject(projectID int64) ([]Job, error) {
 // FindJobWithData finds a job belongingand returns it, with all the
 // Output data related to it already fetched.
 func (db *DB) FindJobWithData(jobID int64) (*Job, error) {
-	var commitID, job string
+	var commitID, job, status, extra string
 
-	row := db.Connection.QueryRow("SELECT commitID, job FROM Jobs WHERE id() = ?1", jobID)
-	row.Scan(&commitID, &job)
+	row := db.Connection.QueryRow("SELECT commitID, job, status, extra FROM Jobs WHERE id() = ?1", jobID)
+	row.Scan(&commitID, &job, &status, &extra)
 
 	if commitID == "" {
 		return nil, fmt.Errorf("Couldn't find project with ID %q", jobID)
@@ -130,6 +168,8 @@ func (db *DB) FindJobWithData(jobID int64) (*Job, error) {
 		Project:  jobID,
 		CommitID: commitID,
 		Job:      job,
+		Status: status,
+		Extra: extra,
 		Data:     data,
 	}, nil
 }
