@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"github.com/boyvanduuren/octorunner/lib/persist"
 )
 
 const (
@@ -226,7 +227,7 @@ func handlePush(payload hookPayload) {
 	}
 	defer cli.Close()
 
-	exitcode, err := repoPipeline.Execute(ctx, cli)
+	exitcode, err := repoPipeline.Execute(ctx, cli, &persist.DBConn)
 	if err != nil {
 		log.Errorf("Error while executing pipeline: %v", err)
 		gitSetState(gitClient, "error", repoOwner, repoName, commitID)

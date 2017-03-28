@@ -57,6 +57,15 @@ type ExecutionClient interface {
 }
 
 /*
+PersistClient implementations provide a functions that are used to persist job data to a datastore.
+ */
+type PersistClient interface {
+	CreateOutputWriter(projectName string, projectOwner string, commitID string,
+		job string) (func(string, string) (int64, error), int64, error)
+	UpdateJobStatus(jobID int64, status persist.JobStatus, extra string) error
+}
+
+/*
 Pipeline contains an image name, and an array containing commands that are executed when
 the pipeline is executed.
 When the pipeline is executed, the script array will be concatenated as a single script, of which every
@@ -89,7 +98,8 @@ const workDir = "/var/run/octorunner"
 /*
 Execute a pipeline, and return the exit code of its script.
 */
-func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error) {
+func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient,
+		persistClient PersistClient) (int, error) {
 	log.Info("Starting execution of pipeline")
 
 	repoData, ok := ctx.Value(repositoryData).(map[string]string)
@@ -138,29 +148,29 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 	}
 	containerRunning := true
 
-	// if we have a connection to a db, log output
+	// make sure we have a provider for output storage
 	var jobID int64
-	if persist.DBConn.Connection != nil {
-		// get a writer that writes to the Output table in our database
-		repoOwner := strings.Split(repoData["fullName"], "/")[0]
-		repoName := strings.Split(repoData["fullName"], "/")[1]
-		commitID := repoData["commitId"]
-		writer, job, err := persist.DBConn.CreateOutputWriter(repoName, repoOwner, commitID, "default")
-		if err != nil {
-			return -1, err
-		}
-		jobID = job
-		// start a goroutine that logs output from the container
-		go logOutput(ctx, cli, containerID, writer, &containerRunning)
-	} else {
-		return -1, fmt.Errorf("Not connected to database")
+	if persistClient == nil {
+		return -1, fmt.Errorf("Cannot log job output")
 	}
+
+	// get a writer that writes to the Output table in our database
+	repoOwner := strings.Split(repoData["fullName"], "/")[0]
+	repoName := strings.Split(repoData["fullName"], "/")[1]
+	commitID := repoData["commitId"]
+	writer, job, err := persistClient.CreateOutputWriter(repoName, repoOwner, commitID, "default")
+	if err != nil {
+		return -1, err
+	}
+	jobID = job
+	// start a goroutine that logs output from the container
+	go logOutput(ctx, cli, containerID, writer, &containerRunning)
 
 	// block until the container is done
 	_, err = cli.ContainerWait(ctx, containerID)
 	if err != nil {
 		formatted_err := fmt.Errorf("Error while waiting for container to finish: %q", err)
-		persist.DBConn.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
+		persistClient.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
 		return -1, formatted_err
 	}
 	// signal the logOutput goroutine to stop
@@ -170,7 +180,7 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 	inspectData, err := cli.ContainerInspect(ctx, containerID)
 	if err != nil {
 		formatted_err := fmt.Errorf("Error while inspecting container: %q", err)
-		persist.DBConn.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
+		persistClient.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
 		return -1, formatted_err
 	}
 	log.Infof("Container \"%s\" done, exit code: %d", containerID, inspectData.State.ExitCode)
@@ -179,11 +189,11 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient) (int, error)
 	err = cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{RemoveVolumes: true})
 	if err != nil {
 		formatted_err := fmt.Errorf("Error while removing container: %q", err)
-		persist.DBConn.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
+		persistClient.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
 		return -1, formatted_err
 	}
 	// Set job status to done
-	persist.DBConn.UpdateJobStatus(jobID, persist.STATUS_DONE, "")
+	persistClient.UpdateJobStatus(jobID, persist.STATUS_DONE, "")
 
 	return inspectData.State.ExitCode, nil
 }
