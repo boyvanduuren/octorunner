@@ -12,6 +12,8 @@ import (
 	"github.com/goadesign/goa/middleware"
 	"github.com/spf13/viper"
 	"strings"
+	"os"
+	"os/signal"
 )
 
 const (
@@ -94,6 +96,18 @@ func main() {
 		log.Info("Auth data found for the following repos: ", repos, " (this excludes ENV vars)")
 		git.Auth = auth.SimpleAuth{Store: repositories}
 	}
+
+	// Capture os.Interrupt so we can close the db connection
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt)
+	go func() {
+		_ = <- sigChan
+		log.Info("Received SIGINT, closing database connection")
+		if persist.DBConn.Connection != nil {
+			persist.DBConn.Connection.Close()
+			os.Exit(0)
+		}
+	}()
 
 	// Setup our webapi
 
