@@ -63,18 +63,10 @@ func (db *DB) CreateOutputWriter(projectName string, projectOwner string, commit
 	}
 	log.Debugf("Project has ID %d", projectID)
 
-	jobIDs, err := db.findJobIDs(projectID, commitID, job)
-	var jobID int64
+	// Always create a new job iteration
+	jobID, err := db.createJob(projectID, commitID, job)
 	if err != nil {
 		return nil, -1, err
-	}
-	if len(jobIDs) == 0 {
-		// Job isn't known in the database, so create it
-		log.Debugf("Job not found, creating")
-		jobID, err = db.createJob(projectID, commitID, job)
-		if err != nil {
-			return nil, -1, err
-		}
 	}
 	log.Debugf("Job has ID %d", jobID)
 

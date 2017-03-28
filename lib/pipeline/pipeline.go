@@ -107,6 +107,15 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient,
 		return -1, errors.New("Error while reading context")
 	}
 
+	// get a writer that writes to the Output table in our database
+	repoOwner := strings.Split(repoData["fullName"], "/")[0]
+	repoName := strings.Split(repoData["fullName"], "/")[1]
+	commitID := repoData["commitId"]
+	writer, jobID, err := persistClient.CreateOutputWriter(repoName, repoOwner, commitID, "default")
+	if err != nil {
+		return -1, err
+	}
+
 	// look for image on Docker host, if we don't have it we'll pull it
 	imageFound, err := imageExists(ctx, cli, c.Image)
 
@@ -121,7 +130,7 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient,
 	}
 
 	// create the container
-	containerName := containerName(repoData["fullName"], repoData["commitId"])
+	containerName := fmt.Sprintf("%s_%d", containerName(repoData["fullName"], repoData["commitId"]), jobID)
 	containerID, err := containerCreate(ctx, cli, c.Script, c.Image, containerName)
 	if err != nil {
 		return -1, err
@@ -149,20 +158,10 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient,
 	containerRunning := true
 
 	// make sure we have a provider for output storage
-	var jobID int64
 	if persistClient == nil {
 		return -1, fmt.Errorf("Cannot log job output")
 	}
 
-	// get a writer that writes to the Output table in our database
-	repoOwner := strings.Split(repoData["fullName"], "/")[0]
-	repoName := strings.Split(repoData["fullName"], "/")[1]
-	commitID := repoData["commitId"]
-	writer, job, err := persistClient.CreateOutputWriter(repoName, repoOwner, commitID, "default")
-	if err != nil {
-		return -1, err
-	}
-	jobID = job
 	// start a goroutine that logs output from the container
 	go logOutput(ctx, cli, containerID, writer, &containerRunning)
 
