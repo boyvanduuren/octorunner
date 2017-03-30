@@ -1,27 +1,29 @@
 package persist
 
 import (
-	"fmt"
 	"database/sql"
+	"fmt"
 )
 
 type Job struct {
-	ID       int64
+	ID        int64
 	Iteration int64
-	Project  int64
-	CommitID string
-	Job      string
-	Status string
-	Extra string
-	Data     []*Output
+	Project   int64
+	CommitID  string
+	Job       string
+	Status    string
+	Extra     string
+	Data      []*Output
 }
 
 type JobStatus int
+
 const (
 	STATUS_DONE JobStatus = iota
 	STATUS_RUNNING
 	STATUS_ERROR
 )
+
 func statusToString(status JobStatus) string {
 	var statusText string
 	switch status {
@@ -82,13 +84,12 @@ func (db *DB) createJob(projectID int64, commitID string, job string) (int64, er
 		return -1, err
 	}
 
-
 	tx, err := db.Connection.Begin()
 	if err != nil {
 		return -1, err
 	}
 
-	res, err := tx.Exec("INSERT INTO Jobs (project, commitID, job, status, iteration)" +
+	res, err := tx.Exec("INSERT INTO Jobs (project, commitID, job, status, iteration)"+
 		" VALUES (?1, ?2, ?3, ?4, ?5)", projectID, commitID, job, "running", latestJobIteration+1)
 	tx.Commit()
 	if err != nil {
@@ -125,7 +126,7 @@ func (db *DB) UpdateJobStatus(jobID int64, status JobStatus, extra string) error
 func (db *DB) FindJobsForProject(projectID int64) ([]Job, error) {
 	var jobs []Job
 
-	rows, err := db.Connection.Query("SELECT id(), iteration, commitID, job, status, extra " +
+	rows, err := db.Connection.Query("SELECT id(), iteration, commitID, job, status, extra "+
 		"FROM Jobs WHERE project = ?1", projectID)
 	if err != nil {
 		return nil, err
@@ -137,14 +138,14 @@ func (db *DB) FindJobsForProject(projectID int64) ([]Job, error) {
 
 		rows.Scan(&id, &iteration, &commitID, &job, &status, &extra)
 		jobs = append(jobs, Job{
-			ID:       id,
+			ID:        id,
 			Iteration: iteration,
-			Project:  projectID,
-			CommitID: commitID,
-			Job:      job,
-			Data:     nil,
-			Status: status,
-			Extra: extra,
+			Project:   projectID,
+			CommitID:  commitID,
+			Job:       job,
+			Data:      nil,
+			Status:    status,
+			Extra:     extra,
 		})
 	}
 
@@ -170,14 +171,14 @@ func (db *DB) FindJobWithData(jobID int64) (*Job, error) {
 	}
 
 	return &Job{
-		ID:       jobID,
+		ID:        jobID,
 		Iteration: iteration,
-		Project:  jobID,
-		CommitID: commitID,
-		Job:      job,
-		Status: status,
-		Extra: extra,
-		Data:     data,
+		Project:   jobID,
+		CommitID:  commitID,
+		Job:       job,
+		Status:    status,
+		Extra:     extra,
+		Data:      data,
 	}, nil
 }
 

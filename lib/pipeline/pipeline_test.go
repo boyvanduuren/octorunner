@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/boyvanduuren/octorunner/lib/persist"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -12,7 +13,6 @@ import (
 	"io/ioutil"
 	"reflect"
 	"testing"
-	"github.com/boyvanduuren/octorunner/lib/persist"
 )
 
 func TestConfigParsing(t *testing.T) {
@@ -352,9 +352,10 @@ func (client MockPipelineExecutionClient) ContainerLogs(ctx context.Context, con
 	return ioutil.NopCloser(nopCloser{bytes.NewBufferString("")}), nil
 }
 
-type noopPersistClient struct {}
+type noopPersistClient struct{}
+
 func (persistClient noopPersistClient) CreateOutputWriter(projectName string, projectOwner string, commitID string,
-job string) (func(string, string) (int64, error), int64, error) {
+	job string) (func(string, string) (int64, error), int64, error) {
 	return func(foo, bar string) (int64, error) {
 		return 1, nil
 	}, 0, nil

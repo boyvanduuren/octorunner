@@ -11,9 +11,9 @@ import (
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
 	"github.com/spf13/viper"
-	"strings"
 	"os"
 	"os/signal"
+	"strings"
 )
 
 const (
@@ -101,7 +101,7 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
 	go func() {
-		_ = <- sigChan
+		_ = <-sigChan
 		log.Info("Received SIGINT, closing database connection")
 		if persist.DBConn.Connection != nil {
 			persist.DBConn.Connection.Close()

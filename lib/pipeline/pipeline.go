@@ -58,7 +58,7 @@ type ExecutionClient interface {
 
 /*
 PersistClient implementations provide a functions that are used to persist job data to a datastore.
- */
+*/
 type PersistClient interface {
 	CreateOutputWriter(projectName string, projectOwner string, commitID string,
 		job string) (func(string, string) (int64, error), int64, error)
@@ -99,7 +99,7 @@ const workDir = "/var/run/octorunner"
 Execute a pipeline, and return the exit code of its script.
 */
 func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient,
-		persistClient PersistClient) (int, error) {
+	persistClient PersistClient) (int, error) {
 	log.Info("Starting execution of pipeline")
 
 	repoData, ok := ctx.Value(repositoryData).(map[string]string)
