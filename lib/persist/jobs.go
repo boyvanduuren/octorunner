@@ -76,7 +76,8 @@ func (db *DB) createJob(projectID int64, commitID string, job string) (int64, er
 
 	// Retrieve the latest iteration ID of this job, which might not exist
 	var latestJobIteration int64
-	row := db.Connection.QueryRow("SELECT iteration FROM Jobs WHERE project = ?1", projectID)
+	row := db.Connection.QueryRow("SELECT iteration FROM Jobs WHERE project = ?1 AND " +
+		"commitID = ?2", projectID, commitID)
 	err = row.Scan(&latestJobIteration)
 	if err == sql.ErrNoRows {
 		latestJobIteration = 0

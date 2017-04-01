@@ -64,18 +64,18 @@ func TestFindProject(t *testing.T) {
 
 func TestCreateJob(t *testing.T) {
 	// We should first create a project
-	projectName := "TestCreateJob"
-	projectOwner := "bcd"
+	projectName01 := "TestCreateJob"
+	projectOwner01 := "bcd"
 
-	projectID, err := conn.createProject(projectName, projectOwner)
+	projectID, err := conn.createProject(projectName01, projectOwner01)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a job belonging to the project we just created
-	jobCommitID := "deadbeef"
-	jobName := "jobname"
-	jobID, err := conn.createJob(projectID, jobCommitID, jobName)
+	job01CommitID := "deadbeef"
+	job01Name := "jobname"
+	jobID, err := conn.createJob(projectID, job01CommitID, job01Name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,11 +83,40 @@ func TestCreateJob(t *testing.T) {
 		t.Fatalf("Unexpected id: %d", jobID)
 	}
 
+	// Verify the job is created with the proper data
+	foundJobID := conn.findJobID(projectID, job01CommitID, "jobname", 1)
+	if foundJobID != jobID {
+		t.Fatalf("Expected id %d, got %d", jobID, foundJobID)
+	}
+
+	// Create a second job
+	job02CommitID := "cafebabe"
+	job02Name := "default"
+	jobID, err = conn.createJob(projectID, job02CommitID, job02Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jobID < 1 {
+		t.Fatalf("Unexpected id: %d", jobID)
+	}
+
+	// Verify the second job is created with the proper data
+	foundJobID = conn.findJobID(projectID, job02CommitID, "default", 1)
+	if foundJobID != jobID {
+		t.Fatalf("Expected id %d, got %d", jobID, foundJobID)
+	}
+
 	// Create a duplicate job (that is, the projectID, commitID and job's name already exist)
 	// This shouldn't error, because a new iteration ID is generated for this job.
-	_, err = conn.createJob(projectID, jobCommitID, jobName)
+	jobID, err = conn.createJob(projectID, job01CommitID, job01Name)
 	if err != nil {
 		t.Fatalf("Unexpected error while creating duplicate job: %q", err)
+	}
+
+	// Verify the duplicate job is created with the proper data
+	foundJobID = conn.findJobID(projectID, job01CommitID, "jobname", 2)
+	if foundJobID != jobID {
+		t.Fatalf("Expected id %d, got %d", jobID, foundJobID)
 	}
 
 	// Create a job for a projectID that doesn't exist, this should error
