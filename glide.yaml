@@ -1,0 +1,33 @@
+package: github.com/boyvanduuren/octorunner
+import:
+- package: github.com/Sirupsen/logrus
+  version: ^0.11.5
+- package: github.com/cznic/ql
+  version: ^1.1.0
+- package: github.com/docker/docker
+  version: ^17.4.0-ce-rc2
+  subpackages:
+  - api/types
+  - api/types/container
+  - api/types/network
+  - api/types/strslice
+  - client
+  - pkg/archive
+- package: github.com/goadesign/goa
+  version: ^1.1.0
+  subpackages:
+  - design
+  - design/apidsl
+  - goatest
+  - logging/logrus
+  - middleware
+- package: github.com/google/go-github
+  subpackages:
+  - github
+- package: github.com/spf13/viper
+- package: golang.org/x/net
+  version: c427ad74c
+  subpackages:
+  - context
+- package: golang.org/x/oauth2
+- package: gopkg.in/yaml.v2

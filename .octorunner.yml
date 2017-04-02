@@ -1,10 +1,10 @@
 image: golang:latest
 script:
-  - go get -u github.com/kardianos/govendor
+  - curl https://glide.sh/get | sh
   - cd /go
   - mkdir -p src/github.com/boyvanduuren/
   - ln -s /var/run/octorunner /go/src/github.com/boyvanduuren/octorunner
   - cd /go/src/github.com/boyvanduuren/octorunner
-  - govendor sync
+  - glide install --strip-vendor
   - go get
-  - go test ./...
+  - go test $(glide novendor)

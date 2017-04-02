@@ -196,7 +196,7 @@ func handlePush(payload hookPayload) {
 	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(repoToken))
 	gitClient := github.NewClient(httpClient)
 
-	repoDir, err := getRepository(httpClient, gitClient, repoName, repoOwner, commitID, repoToken)
+	repoDir, err := getRepository(ctx, httpClient, gitClient, repoName, repoOwner, commitID, repoToken)
 	if err != nil {
 		log.Errorf("Error while downloading copy of repository: %v", err)
 		return
@@ -216,13 +216,13 @@ func handlePush(payload hookPayload) {
 
 	// set state of commit to pending
 	log.Debug("Setting state to pending")
-	gitSetState(gitClient, "pending", repoOwner, repoName, commitID)
+	gitSetState(ctx, gitClient, "pending", repoOwner, repoName, commitID)
 
 	// create Docker client
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		log.Errorf("Error while creating connection to Docker: %q", err)
-		gitSetState(gitClient, "error", repoOwner, repoName, commitID)
+		gitSetState(ctx, gitClient, "error", repoOwner, repoName, commitID)
 		return
 	}
 	defer cli.Close()
@@ -230,19 +230,19 @@ func handlePush(payload hookPayload) {
 	exitcode, err := repoPipeline.Execute(ctx, cli, &persist.DBConn)
 	if err != nil {
 		log.Errorf("Error while executing pipeline: %v", err)
-		gitSetState(gitClient, "error", repoOwner, repoName, commitID)
+		gitSetState(ctx, gitClient, "error", repoOwner, repoName, commitID)
 		return
 	}
 
 	log.Debugf("Pipeline returned %d, setting state accordingly", exitcode)
 	if exitcode == 0 {
-		gitSetState(gitClient, "success", repoOwner, repoName, commitID)
+		gitSetState(ctx, gitClient, "success", repoOwner, repoName, commitID)
 	} else {
-		gitSetState(gitClient, "failure", repoOwner, repoName, commitID)
+		gitSetState(ctx, gitClient, "failure", repoOwner, repoName, commitID)
 	}
 }
 
-func getRepository(httpClient *http.Client, gitClient *github.Client, repoName string, repoOwner string,
+func getRepository(ctx context.Context, httpClient *http.Client, gitClient *github.Client, repoName string, repoOwner string,
 	commitID string, repoToken *oauth2.Token) (string, error) {
 	const githubArchiveURL = "https://github.com/%s/%s/archive/%s.zip"
 	const githubArchiveFormat = "zipball"
@@ -258,7 +258,7 @@ func getRepository(httpClient *http.Client, gitClient *github.Client, repoName s
 		}
 	} else {
 		log.Debug("Getting archive URL for \"" + repoOwner + "/" + repoName + "\", ref \"" + commitID + "\"")
-		archiveURL, _, err = gitClient.Repositories.GetArchiveLink(repoOwner, repoName, githubArchiveFormat,
+		archiveURL, _, err = gitClient.Repositories.GetArchiveLink(ctx, repoOwner, repoName, githubArchiveFormat,
 			&github.RepositoryContentGetOptions{Ref: commitID})
 		if err != nil {
 			return "", fmt.Errorf("Error while getting archive URL: %v", err)
@@ -334,12 +334,12 @@ func readPipelineConfig(directory string) (pipeline.Pipeline, error) {
 	return pipelineConfig, err
 }
 
-func gitSetState(git *github.Client, state string, owner string, repo string, commit string) {
-	context := "continuous-integration/octorunner"
-	git.Repositories.CreateStatus(owner, repo, commit,
+func gitSetState(ctx context.Context, git *github.Client, state string, owner string, repo string, commit string) {
+	repoStatusContext := "continuous-integration/octorunner"
+	git.Repositories.CreateStatus(ctx, owner, repo, commit,
 		&github.RepoStatus{
 			State:   &state,
-			Context: &context,
+			Context: &repoStatusContext,
 		},
 	)
 }
