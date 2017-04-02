@@ -102,6 +102,11 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient,
 	persistClient PersistClient) (int, error) {
 	log.Info("Starting execution of pipeline")
 
+	// make sure we have a provider for output storage
+	if persistClient == nil {
+		return -1, fmt.Errorf("Cannot log job output")
+	}
+
 	repoData, ok := ctx.Value(repositoryData).(map[string]string)
 	if !ok {
 		return -1, errors.New("Error while reading context")
@@ -123,6 +128,8 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient,
 		log.Infof("Pulling image \"%s\"", c.Image)
 		err := imagePull(ctx, cli, c.Image)
 		if err != nil {
+			formatted_err := fmt.Errorf("Error while waiting running job: %q", err)
+			persistClient.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
 			return -1, err
 		}
 	} else {
@@ -133,6 +140,8 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient,
 	containerName := fmt.Sprintf("%s_%d", containerName(repoData["fullName"], repoData["commitId"]), jobID)
 	containerID, err := containerCreate(ctx, cli, c.Script, c.Image, containerName)
 	if err != nil {
+		formatted_err := fmt.Errorf("Error while waiting running job: %q", err)
+		persistClient.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
 		return -1, err
 	}
 
@@ -140,12 +149,16 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient,
 	log.Infof("Copying files from %q to container %q", repoData["fsLocation"], containerID)
 	dst, src, out, err := common.CreateTarball(repoData["fsLocation"], workDir)
 	if err != nil {
+		formatted_err := fmt.Errorf("Error while waiting running job: %q", err)
+		persistClient.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
 		return -1, fmt.Errorf("Error while preparing tarball: %q", err)
 	}
 	defer src.Close()
 	defer out.Close()
 	err = cli.CopyToContainer(ctx, containerID, dst, out, types.CopyToContainerOptions{AllowOverwriteDirWithFile: false})
 	if err != nil {
+		formatted_err := fmt.Errorf("Error while waiting running job: %q", err)
+		persistClient.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
 		return -1, fmt.Errorf("Error while coping file(s): %q", err)
 	}
 
@@ -153,14 +166,11 @@ func (c Pipeline) Execute(ctx context.Context, cli ExecutionClient,
 	log.Infof("Starting container %q", containerID)
 	err = cli.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
 	if err != nil {
+		formatted_err := fmt.Errorf("Error while waiting running job: %q", err)
+		persistClient.UpdateJobStatus(jobID, persist.STATUS_ERROR, fmt.Sprintf("%v", formatted_err))
 		return -1, fmt.Errorf("Error while starting container: %q", err)
 	}
 	containerRunning := true
-
-	// make sure we have a provider for output storage
-	if persistClient == nil {
-		return -1, fmt.Errorf("Cannot log job output")
-	}
 
 	// start a goroutine that logs output from the container
 	go logOutput(ctx, cli, containerID, writer, &containerRunning)
