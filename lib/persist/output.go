@@ -83,7 +83,8 @@ func (db *DB) CreateOutputWriter(projectName string, projectOwner string, commit
 func (db *DB) findAllOutputForJob(jobID int64) ([]*Output, error) {
 	var results []*Output
 
-	rows, err := db.Connection.Query("SELECT id(), data, timestamp FROM Output WHERE job = ?1", jobID)
+	rows, err := db.Connection.Query("SELECT id(), data, timestamp FROM Output WHERE job = ?1 " +
+		"ORDER BY timestamp ASC", jobID)
 
 	if err != nil {
 		return nil, err
